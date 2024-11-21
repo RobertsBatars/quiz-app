@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, readFile } from 'fs/promises'
+import { writeFile, readFile, unlink } from 'fs/promises'
 import path from 'path'
 import OpenAI from 'openai'
 
