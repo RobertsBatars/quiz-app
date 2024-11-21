@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { jsPDF } from "jspdf"
-import "jspdf-autotable"
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 // Mock data for demonstration
 const mockUsers = [
@@ -41,28 +41,34 @@ export default function AdminDashboard() {
   }, [user, router])
 
   const downloadPDF = () => {
-    const doc = new jsPDF()
+    const doc = new jsPDF('l', 'mm', 'a4')
     doc.text("Analytics Report", 14, 15)
     
     // Add user table
-    doc.autoTable({
+    autoTable(doc, {
       head: [['Name', 'Email', 'Status', 'Quizzes Taken', 'Average Score']],
       body: mockUsers.map(user => [user.name, user.email, user.status, user.quizzesTaken, user.averageScore]),
-      startY: 20,
+      startY: 25
     })
+
+    // Get final Y position
+    const finalY = (doc as any).lastAutoTable.finalY
 
     // Add file table
-    doc.autoTable({
+    autoTable(doc, {
       head: [['File Name', 'Uploaded By', 'Size', 'Upload Date']],
       body: mockFiles.map(file => [file.name, file.uploadedBy, file.size, file.uploadDate]),
-      startY: doc.lastAutoTable.finalY + 10,
+      startY: finalY + 10
     })
 
+    // Get final Y position for analytics table
+    const finalY2 = (doc as any).lastAutoTable.finalY
+
     // Add analytics data
-    doc.autoTable({
+    autoTable(doc, {
       head: [['Month', 'Users', 'Quizzes', 'Average Score']],
       body: mockAnalytics.map(data => [data.name, data.users, data.quizzes, data.averageScore]),
-      startY: doc.lastAutoTable.finalY + 10,
+      startY: finalY2 + 10
     })
 
     doc.save("analytics_report.pdf")
