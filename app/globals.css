@@ -2,26 +2,176 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Base colors */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    /* Border colors */
+    --border: 240 5.9% 90%;
+    --border-border: hsl(var(--border));
+
+    /* Primary colors */
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+
+    /* Secondary colors */
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    /* Accent colors */
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+
+    /* Muted colors */
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    /* Card colors */
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    /* Popover colors */
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    /* Input colors */
+    --input: 240 5.9% 90%;
+
+    /* Ring color */
+    --ring: 240 5.9% 10%;
+
+    /* Destructive colors */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Success colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+
+    /* Warning colors */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    /* Info colors */
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 98%;
+
+    /* Radius */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    /* Border colors for dark mode */
+    --border: 240 3.7% 15.9%;
+    --border-border: hsl(var(--border));
+
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 98%;
+  }
+
+  .border-border {
+    border-color: var(--border-border);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
+/* Typography */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .h1 {
+    @apply scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl;
+  }
+  .h2 {
+    @apply scroll-m-20 text-3xl font-semibold tracking-tight;
+  }
+  .h3 {
+    @apply scroll-m-20 text-2xl font-semibold tracking-tight;
+  }
+  .h4 {
+    @apply scroll-m-20 text-xl font-semibold tracking-tight;
+  }
+  .p {
+    @apply leading-7 [&:not(:first-child)]:mt-6;
+  }
+  .large {
+    @apply text-lg font-semibold;
+  }
+  .small {
+    @apply text-sm font-medium leading-none;
   }
 }
+
+/* Animation utilities */
+@layer utilities {
+  .animate-in {
+    animation: animate-in 0.2s ease-in-out;
+  }
+  .animate-out {
+    animation: animate-out 0.2s ease-in-out;
+  }
+}
+
+@keyframes animate-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes animate-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
