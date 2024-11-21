@@ -4,14 +4,24 @@ import * as React from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { type ThemeProviderProps } from "next-themes/dist/types"
 
-type ThemeProviderCustomProps = Omit<ThemeProviderProps, 'attribute' | 'defaultTheme' | 'enableSystem'> & {
+type ThemeProviderCustomProps = Omit<ThemeProviderProps, 'storageKey'> & {
   children: React.ReactNode
+  attribute?: string
+  defaultTheme?: string
+  enableSystem?: boolean
+  disableTransitionOnChange?: boolean
 }
 
-export function ThemeProvider({ children, ...props }: ThemeProviderCustomProps) {
+export function ThemeProvider({ 
+  children,
+  attribute = "class",
+  defaultTheme = "system",
+  enableSystem = true,
+  disableTransitionOnChange = true,
+  ...props 
+}: ThemeProviderCustomProps) {
   const [mounted, setMounted] = React.useState(false)
 
-  // Prevent hydration mismatch by only rendering after mount
   React.useEffect(() => {
     setMounted(true)
   }, [])
@@ -22,11 +32,11 @@ export function ThemeProvider({ children, ...props }: ThemeProviderCustomProps) 
 
   return (
     <NextThemesProvider 
-      attribute="class" // Uses class attribute for theming
-      defaultTheme="system" // Defaults to system preference
-      enableSystem // Enables system theme detection
-      disableTransitionOnChange // Prevents flash during theme change
-      storageKey="quiz-app-theme" // Custom storage key
+      attribute={attribute}
+      defaultTheme={defaultTheme}
+      enableSystem={enableSystem}
+      disableTransitionOnChange={disableTransitionOnChange}
+      storageKey="quiz-app-theme"
       {...props}
     >
       {children}
