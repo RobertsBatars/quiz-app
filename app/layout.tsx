@@ -11,7 +11,7 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
-export const metadatas: Metadata = {
+export const metadata: Metadata = {
   title: "AI Quiz Maker",
   description: "AI-powered quiz generator from your study materials",
   robots: "index, follow",
