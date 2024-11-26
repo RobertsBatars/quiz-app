@@ -1,178 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 import { QuizType, QueryResponse, GeneratedQuiz } from '@/types/quiz'
+import { vectorSearch } from '@/lib/vector'
+import { z } from 'zod'
+import { zodResponseFormat } from 'openai/helpers/zod'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
 
-// OpenAI function schemas
-const QUERY_FUNCTION = {
-  name: 'generate_search_query',
-  description: 'Generate a search query to find relevant information for the quiz',
-  parameters: {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'string',
-        description: 'The search query to find relevant information'
-      },
-      stopQuery: {
-        type: 'boolean',
-        description: 'Whether to stop generating more queries'
-      },
-      contextSummary: {
-        type: 'string',
-        description: 'Summary of the context gathered so far'
-      }
-    },
-    required: ['query', 'stopQuery']
-  }
-} as const
+const SearchQuery = z.object({
+  query: z.string(),
+  stopQuery: z.boolean(),
+  contextSummary: z.string().optional()
+})
 
-const QUIZ_FUNCTIONS = {
-  'multiple-choice': {
-    name: 'generate_multiple_choice_quiz',
-    description: 'Generate a multiple choice quiz',
-    parameters: {
-      type: 'object',
-      properties: {
-        questions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              question: { type: 'string' },
-              options: {
-                type: 'array',
-                items: { type: 'string' },
-                minItems: 4,
-                maxItems: 4
-              },
-              correctAnswer: { type: 'integer' },
-              explanation: { type: 'string' }
-            },
-            required: ['question', 'options', 'correctAnswer', 'explanation']
-          }
-        }
-      },
-      required: ['questions']
-    }
-  },
-  'open-ended': {
-    name: 'generate_open_ended_quiz',
-    description: 'Generate an open-ended quiz with grading rubric',
-    parameters: {
-      type: 'object',
-      properties: {
-        questions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              question: { type: 'string' },
-              sampleAnswer: { type: 'string' },
-              gradingRubric: {
-                type: 'object',
-                properties: {
-                  keyPoints: {
-                    type: 'array',
-                    items: { type: 'string' }
-                  },
-                  scoringCriteria: { type: 'string' }
-                }
-              }
-            },
-            required: ['question', 'sampleAnswer', 'gradingRubric']
-          }
-        }
-      },
-      required: ['questions']
-    }
-  },
-  'flash-cards': {
-    name: 'generate_flash_cards',
-    description: 'Generate flash cards',
-    parameters: {
-      type: 'object',
-      properties: {
-        cards: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              front: { type: 'string' },
-              back: { type: 'string' },
-              hints: {
-                type: 'array',
-                items: { type: 'string' }
-              }
-            },
-            required: ['front', 'back']
-          }
-        }
-      },
-      required: ['cards']
-    }
-  },
-  'oral-exam': {
-    name: 'generate_oral_exam',
-    description: 'Generate an oral exam structure',
-    parameters: {
-      type: 'object',
-      properties: {
-        sections: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              topic: { type: 'string' },
-              questions: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    question: { type: 'string' },
-                    expectedPoints: {
-                      type: 'array',
-                      items: { type: 'string' }
-                    },
-                    followUpQuestions: {
-                      type: 'array',
-                      items: { type: 'string' }
-                    }
-                  },
-                  required: ['question', 'expectedPoints']
-                }
-              }
-            },
-            required: ['topic', 'questions']
-          }
-        }
-      },
-      required: ['sections']
-    }
-  }
-} as const
+const QUERY_SCHEMA = zodResponseFormat(SearchQuery, 'search_query')
 
-// Mock vector search function - replace with actual vector DB search
-async function mockVectorSearch(query: string): Promise<string> {
-  // This would be replaced with actual vector DB search
-  return `Mock search result for query: ${query}`
-}
+const MultipleChoiceQuestion = z.object({
+  question: z.string(),
+  options: z.array(z.string()).length(4),
+  correctAnswer: z.number().int().min(0).max(3),
+  explanation: z.string()
+})
+
+const OpenEndedQuestion = z.object({
+  question: z.string(),
+  sampleAnswer: z.string(),
+  gradingRubric: z.object({
+    keyPoints: z.array(z.string()),
+    scoringCriteria: z.string()
+  })
+})
+
+const FlashCard = z.object({
+  front: z.string(),
+  back: z.string(),
+  hints: z.array(z.string()).optional()
+})
+
+const OralExamQuestion = z.object({
+  question: z.string(),
+  expectedPoints: z.array(z.string()),
+  followUpQuestions: z.array(z.string()).optional()
+})
+
+const OralExamSection = z.object({
+  topic: z.string(),
+  questions: z.array(OralExamQuestion)
+})
+
+const QUIZ_SCHEMAS = {
+  'multiple-choice': zodResponseFormat(z.object({
+    questions: z.array(MultipleChoiceQuestion)
+  }), 'multiple_choice_quiz'),
+  
+  'open-ended': zodResponseFormat(z.object({
+    questions: z.array(OpenEndedQuestion)
+  }), 'open_ended_quiz'),
+  
+  'flash-cards': zodResponseFormat(z.object({
+    cards: z.array(FlashCard)
+  }), 'flash_cards'),
+  
+  'oral-exam': zodResponseFormat(z.object({
+    sections: z.array(OralExamSection)
+  }), 'oral_exam')
+} as const
 
 export async function POST(request: NextRequest) {
-  const { content, quizType } = await request.json()
+  const { content, quizType, projectId } = await request.json()
 
   try {
-    // Step 1: Generate queries and gather context
+    // Step 1: Generate queries and gather context using vector search
     let contextData: string[] = []
     let queryCount = 0
     const maxQueries = 3
 
     while (queryCount < maxQueries) {
-      const queryCompletion = await openai.chat.completions.create({
-        model: 'gpt-4',
+      const queryCompletion = await openai.beta.chat.completions.parse({
+        model: 'gpt-4o-2024-08-06',
         messages: [
           {
             role: 'system',
@@ -183,20 +90,21 @@ export async function POST(request: NextRequest) {
             content: `Content: ${content}\nContext gathered so far: ${contextData.join('\n')}`
           }
         ],
-        functions: [QUERY_FUNCTION],
-        function_call: { name: 'generate_search_query' }
+        response_format: QUERY_SCHEMA
       })
 
-      const functionCall = queryCompletion.choices[0].message.function_call
-      if (!functionCall || !functionCall.arguments) {
-        throw new Error('Failed to generate search query')
+      if (queryCompletion.choices[0].message.refusal) {
+        throw new Error('Query generation refused: ' + queryCompletion.choices[0].message.refusal)
       }
 
-      const queryResponse = JSON.parse(functionCall.arguments) as QueryResponse
-      const searchResult = await mockVectorSearch(queryResponse.query)
-      contextData.push(searchResult)
+      const queryResponse = queryCompletion.choices[0].message.parsed
+      const searchResults = await vectorSearch(queryResponse.query, projectId)
+      
+      for (const result of searchResults) {
+        contextData.push(result.content)
+      }
 
-      if (queryResponse.stopQuery) {
+      if (queryResponse.stopQuery || contextData.length >= 10) {
         break
       }
 
@@ -204,8 +112,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Generate quiz based on gathered context
-    const quizCompletion = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const quizCompletion = await openai.beta.chat.completions.parse({
+      model: 'gpt-4o-2024-08-06',
       messages: [
         {
           role: 'system',
@@ -216,16 +124,14 @@ export async function POST(request: NextRequest) {
           content: `Content: ${content}\nGathered context: ${contextData.join('\n')}`
         }
       ],
-      functions: [QUIZ_FUNCTIONS[quizType as QuizType]],
-      function_call: { name: QUIZ_FUNCTIONS[quizType as QuizType].name }
+      response_format: QUIZ_SCHEMAS[quizType as QuizType]
     })
 
-    const functionCall = quizCompletion.choices[0].message.function_call
-    if (!functionCall || !functionCall.arguments) {
-      throw new Error('Failed to generate quiz')
+    if (quizCompletion.choices[0].message.refusal) {
+      throw new Error('Quiz generation refused: ' + quizCompletion.choices[0].message.refusal)
     }
 
-    const quiz = JSON.parse(functionCall.arguments) as GeneratedQuiz
+    const quiz = quizCompletion.choices[0].message.parsed
 
     return NextResponse.json({ success: true, quiz })
   } catch (error) {

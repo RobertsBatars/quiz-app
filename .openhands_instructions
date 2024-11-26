@@ -1,0 +1,91 @@
+# Repository Overview
+AI-driven quiz platform that automates quiz creation from uploaded documents (PDFs, Word files). Features multiple quiz types, admin console, AI moderation, and oral exams.
+
+## General Setup
+- Install dependencies: `npm install`
+- Development: `npm run dev`
+- Build: `npm run build`
+- Start: `npm start`
+
+## Environment Setup
+Required environment variables (.env.local):
+- OPENAI_API_KEY: OpenAI API key for AI features
+- MONGODB_URI: MongoDB connection string
+- NEXTAUTH_SECRET: Secret key for NextAuth
+- NEXTAUTH_URL: Base URL for authentication
+
+## Project Structure
+/app - Next.js application routes and pages
+/components - Reusable UI components
+/lib - Utility functions and configurations
+/models - MongoDB schemas and models
+/scripts - Build and setup scripts
+/types - TypeScript type definitions
+
+## Database Models
+Required collections:
+- Users: User information and authentication
+  - Fields: email, password, name, role, status, lastLogin, loginAttempts, lockUntil, settings
+  - Status: active, banned, deleted
+  - Role: user, admin
+  - Settings: emailNotifications, twoFactorEnabled, theme
+
+- Documents: Uploaded files metadata
+  - Fields: userId, projectId, fileName, fileType, fileSize, path, embeddings, status, moderationStatus
+  - Status: processing, completed, error
+  - ModerationStatus: pending, approved, rejected
+
+- Quizzes: Quiz data and configurations
+  - Fields: userId, projectId, title, description, type, questions, timeLimit, passingScore, status
+  - Type: multiple-choice, open-ended, flashcard, oral
+  - Status: draft, published, archived
+
+- Questions: Individual quiz questions
+  - Fields: quizId, type, question, options, correctAnswer, explanation, points, aiRubric
+  - Type: multiple-choice, open-ended, flashcard
+
+- Responses: User quiz responses
+  - Fields: userId, quizId, answers, totalScore, percentageScore, startTime, endTime, status
+  - Status: in-progress, completed, abandoned
+
+- Projects: User project management
+  - Fields: userId, name, description, documents, quizzes, collaborators, settings
+  - CollaboratorRole: viewer, editor, admin
+
+## Features
+- Document upload (PDF, Word)
+  - Vector embeddings using OpenAI
+  - MongoDB Atlas Vector Search
+  - AI-powered content moderation
+
+- Multiple quiz types
+  - Multiple choice with 4 options
+  - Open-ended with AI grading
+  - Flashcards with hints
+  - Oral exams with recording
+
+- Admin console
+  - User management (ban, unban, delete)
+  - File moderation (approve, reject, delete)
+  - Analytics dashboard
+  - PDF report generation
+
+- Security features
+  - Account locking after 5 failed attempts
+  - Role-based access control
+  - API route protection
+  - Banned user handling
+
+## OpenAI Integration
+- Structured outputs using JSON Schema
+- Vector embeddings for document search
+- Quiz generation with context
+- AI grading for open-ended questions
+- Content moderation
+
+## Testing Guidelines
+- Run tests: `npm test`
+- Test files location: `__tests__` directories
+- Component tests: Use React Testing Library
+- API tests: Use Jest for backend testing
+- Mock OpenAI responses for tests

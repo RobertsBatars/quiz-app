@@ -5,12 +5,20 @@ export interface IUser extends mongoose.Document {
   password: string
   name: string
   role: 'user' | 'admin'
-  isActive: boolean
+  status: 'active' | 'banned' | 'deleted'
+  lastLogin: Date
+  loginAttempts: number
+  lockUntil: Date
   createdAt: Date
   updatedAt: Date
   projects: mongoose.Types.ObjectId[]
   uploadedFiles: mongoose.Types.ObjectId[]
   quizzes: mongoose.Types.ObjectId[]
+  settings: {
+    emailNotifications: boolean
+    twoFactorEnabled: boolean
+    theme: 'light' | 'dark' | 'system'
+  }
 }
 
 const userSchema = new mongoose.Schema<IUser>(
@@ -36,9 +44,22 @@ const userSchema = new mongoose.Schema<IUser>(
       enum: ['user', 'admin'],
       default: 'user',
     },
-    isActive: {
-      type: Boolean,
-      default: true,
+    status: {
+      type: String,
+      enum: ['active', 'banned', 'deleted'],
+      default: 'active',
+    },
+    lastLogin: {
+      type: Date,
+      default: null,
+    },
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+      default: null,
     },
     projects: [{
       type: mongoose.Schema.Types.ObjectId,
@@ -52,6 +73,21 @@ const userSchema = new mongoose.Schema<IUser>(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Quiz',
     }],
+    settings: {
+      emailNotifications: {
+        type: Boolean,
+        default: true,
+      },
+      twoFactorEnabled: {
+        type: Boolean,
+        default: false,
+      },
+      theme: {
+        type: String,
+        enum: ['light', 'dark', 'system'],
+        default: 'system',
+      },
+    },
   },
   {
     timestamps: true,
