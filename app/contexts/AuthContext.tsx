@@ -1,99 +1,199 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { useSession, signIn, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { useNotification } from '@/app/hooks/useNotification'
 
 interface User {
-  id: string;
-  email: string;
-  name: string;
-  projectCount: number;
-  uploadLimit: number;
+  id: string
+  email: string
+  name: string
+  role: string
 }
 
 interface Project {
-  id: string;
-  name: string;
-  userId: string;
+  id: string
+  name: string
+  userId: string
 }
 
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
-  createProject: (name: string) => Promise<void>;
-  getProjects: () => Project[];
-  projects: Project[];
+  user: User | null
+  isLoading: boolean
+  isAuthenticated: boolean
+  login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, name: string) => Promise<void>
+  logout: () => Promise<void>
+  createProject: (name: string) => Promise<void>
+  getProjects: () => Promise<Project[]>
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { data: session, status } = useSession()
+  const [user, setUser] = useState<User | null>(null)
+  const router = useRouter()
+  const { showNotification } = useNotification()
 
   useEffect(() => {
-    // Check for existing session
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    if (status === 'authenticated' && session?.user) {
+      setUser({
+        id: session.user.id,
+        email: session.user.email!,
+        name: session.user.name!,
+        role: session.user.role,
+      })
+    } else if (status === 'unauthenticated') {
+      setUser(null)
     }
-    const storedProjects = localStorage.getItem('projects');
-    if (storedProjects) {
-      setProjects(JSON.parse(storedProjects));
-    }
-  }, []);
+  }, [session, status])
 
   const login = async (email: string, password: string) => {
-    // Mock login logic
-    console.log('Login attempt:', email, password);
-    const mockUser = { id: '1', email, name: 'John Doe', projectCount: 0, uploadLimit: 100 };
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-  };
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        showNotification({
+          title: 'Error',
+          message: 'Invalid email or password',
+          type: 'error',
+        })
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
+    }
+  }
 
   const register = async (email: string, password: string, name: string) => {
-    // Mock registration logic
-    console.log('Registration attempt:', email, password, name);
-    const mockUser = { id: '1', email, name, projectCount: 0, uploadLimit: 100 };
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
-  };
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password, name }),
+      })
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-  };
+      const data = await response.json()
+
+      if (!response.ok) {
+        showNotification({
+          title: 'Error',
+          message: data.error || 'Registration failed',
+          type: 'error',
+        })
+        throw new Error(data.error)
+      }
+
+      showNotification({
+        title: 'Success',
+        message: 'Registration successful',
+        type: 'success',
+      })
+
+      // Login after successful registration
+      await login(email, password)
+    } catch (error) {
+      console.error('Registration error:', error)
+      throw error
+    }
+  }
+
+  const logout = async () => {
+    try {
+      await signOut({ redirect: false })
+      router.push('/login')
+    } catch (error) {
+      console.error('Logout error:', error)
+      throw error
+    }
+  }
 
   const createProject = async (name: string) => {
-    if (user) {
-      const newProject: Project = { id: Date.now().toString(), name, userId: user.id };
-      const updatedProjects = [...projects, newProject];
-      setProjects(updatedProjects);
-      localStorage.setItem('projects', JSON.stringify(updatedProjects));
-      
-      const updatedUser = { ...user, projectCount: user.projectCount + 1 };
-      setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-    }
-  };
+    if (!user) throw new Error('Not authenticated')
 
-  const getProjects = () => {
-    return projects.filter(project => user && project.userId === user.id);
-  };
+    try {
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        showNotification({
+          title: 'Error',
+          message: data.error || 'Failed to create project',
+          type: 'error',
+        })
+        throw new Error(data.error)
+      }
+
+      showNotification({
+        title: 'Success',
+        message: 'Project created successfully',
+        type: 'success',
+      })
+
+      return data.project
+    } catch (error) {
+      console.error('Create project error:', error)
+      throw error
+    }
+  }
+
+  const getProjects = async () => {
+    if (!user) throw new Error('Not authenticated')
+
+    try {
+      const response = await fetch('/api/projects')
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error)
+      }
+
+      return data.projects
+    } catch (error) {
+      console.error('Get projects error:', error)
+      throw error
+    }
+  }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, createProject, getProjects, projects }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading: status === 'loading',
+        isAuthenticated: status === 'authenticated',
+        login,
+        register,
+        logout,
+        createProject,
+        getProjects,
+      }}
+    >
       {children}
     </AuthContext.Provider>
-  );
-};
+  )
+}
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = useContext(AuthContext)
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-  return context;
-};
+  return context
+}
 
