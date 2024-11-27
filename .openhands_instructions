@@ -6,6 +6,8 @@ AI-driven quiz platform that automates quiz creation from uploaded documents (PD
 - Development: `npm run dev`
 - Build: `npm run build`
 - Start: `npm start`
+- Run tests: `npm test`
+- Update database schema: `npm run update-db`
 
 ## Environment Setup
 Required environment variables (.env.local):
@@ -13,6 +15,15 @@ Required environment variables (.env.local):
 - MONGODB_URI: MongoDB connection string
 - NEXTAUTH_SECRET: Secret key for NextAuth
 - NEXTAUTH_URL: Base URL for authentication
+- NODE_ENV: Set to 'development' for debug mode
+
+## Testing
+- Run all tests: `npm test`
+- Watch mode: `npm run test:watch`
+- Coverage report: `npm run test:coverage`
+- Tests are located in `__tests__` directory
+- Test setup in `__tests__/setup.ts`
+- Jest configuration in `jest.config.js`
 
 ## Project Structure
 /app - Next.js application routes and pages
