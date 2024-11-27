@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI-Powered Quiz Platform
+
+An advanced quiz platform that uses AI to automatically generate quizzes from uploaded documents. Features multiple quiz types, AI grading, and comprehensive admin tools.
+
+## Features
+
+- **Document Processing**
+  - Support for PDF and Word documents
+  - AI-powered content extraction and analysis
+  - Vector embeddings for semantic search
+  - Automated content moderation
+
+- **Quiz Types**
+  - Multiple choice (4 options)
+  - Open-ended with AI grading
+  - Flashcards with hints
+  - Oral exams with recording
+
+- **Admin Features**
+  - User management
+  - Content moderation
+  - Analytics dashboard
+  - PDF report generation
+
+- **Security**
+  - Role-based access control
+  - Account protection
+  - API route security
+  - Content moderation
 
 ## Getting Started
 
-First, run the development server:
+1. **Clone and Install**
+   ```bash
+   git clone <repository-url>
+   cd quiz-app
+   npm install
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2. **Environment Setup**
+   Create a `.env.local` file with:
+   ```
+   OPENAI_API_KEY=your-api-key
+   MONGODB_URI=your-mongodb-uri
+   NEXTAUTH_SECRET=your-secret-key
+   NEXTAUTH_URL=http://localhost:3000
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. **Database Setup**
+   ```bash
+   npm run update-db
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. **Development**
+   ```bash
+   npm run dev
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. **Testing**
+   ```bash
+   npm test
+   ```
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+- `/app` - Next.js routes and pages
+- `/components` - Reusable UI components
+- `/lib` - Utility functions
+- `/models` - MongoDB schemas
+- `/scripts` - Build and setup scripts
+- `/types` - TypeScript definitions
+- `/__tests__` - Test files
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Documentation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Authentication
+- POST `/api/auth/register` - User registration
+- POST `/api/auth/login` - User login
+- GET `/api/auth/session` - Get session
 
-## Deploy on Vercel
+### Documents
+- POST `/api/documents/upload` - Upload document
+- GET `/api/documents` - List documents
+- GET `/api/documents/:id` - Get document
+- DELETE `/api/documents/:id` - Delete document
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Quizzes
+- POST `/api/quizzes` - Create quiz
+- GET `/api/quizzes` - List quizzes
+- GET `/api/quizzes/:id` - Get quiz
+- PUT `/api/quizzes/:id` - Update quiz
+- DELETE `/api/quizzes/:id` - Delete quiz
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Admin
+- GET `/api/admin/users` - List users
+- PUT `/api/admin/users/:id` - Update user
+- GET `/api/admin/analytics` - Get analytics
+- GET `/api/admin/reports` - Generate reports
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License.
