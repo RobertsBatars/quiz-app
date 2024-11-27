@@ -1,12 +1,11 @@
+// Must be defined before any imports
+const { TextEncoder, TextDecoder } = require('node:util');
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
 import '@testing-library/jest-dom';
-import { TextEncoder, TextDecoder } from 'util';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
-
-// Fix for TextEncoder/TextDecoder not defined
-const { TextEncoder: NodeTextEncoder, TextDecoder: NodeTextDecoder } = require('util');
-global.TextEncoder = NodeTextEncoder;
-global.TextDecoder = NodeTextDecoder;
 
 // Fix for URL not defined
 const { URL } = require('url');
