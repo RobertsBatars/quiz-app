@@ -10,8 +10,17 @@ if (!MONGODB_URI) {
 }
 
 async function updateSchema() {
-  const client = await MongoClient.connect(MONGODB_URI);
+  const client = await MongoClient.connect(MONGODB_URI as string);
   const db = client.db();
+
+  // Create collections if they don't exist
+  const collections = ['users', 'documents', 'quizzes', 'questions', 'responses', 'projects'];
+  for (const collection of collections) {
+    const exists = await db.listCollections({ name: collection }).hasNext();
+    if (!exists) {
+      await db.createCollection(collection);
+    }
+  }
 
   // Update Users collection
   await db.command({
