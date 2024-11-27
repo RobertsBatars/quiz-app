@@ -13,6 +13,7 @@ const customJestConfig = {
       tsconfig: 'tsconfig.json'
     }
   },
+  injectGlobals: true,
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
