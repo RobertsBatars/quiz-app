@@ -10,8 +10,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-import { useEffect, useState } from 'react'
-
 interface User {
   id: string
   name: string
@@ -48,47 +46,46 @@ interface OverallStats {
   averageScore: number
 }
 
-const [users, setUsers] = useState<User[]>([])
-const [files, setFiles] = useState<File[]>([])
-const [analytics, setAnalytics] = useState<Analytics[]>([])
-const [overall, setOverall] = useState<OverallStats | null>(null)
-const [loading, setLoading] = useState(true)
-
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const [usersRes, filesRes, analyticsRes] = await Promise.all([
-        fetch('/api/admin/users'),
-        fetch('/api/admin/files'),
-        fetch('/api/admin/analytics')
-      ])
-
-      if (!usersRes.ok || !filesRes.ok || !analyticsRes.ok) {
-        throw new Error('Failed to fetch data')
-      }
-
-      const usersData = await usersRes.json()
-      const filesData = await filesRes.json()
-      const analyticsData = await analyticsRes.json()
-
-      setUsers(usersData.users)
-      setFiles(filesData.files)
-      setAnalytics(analyticsData.analytics)
-      setOverall(analyticsData.overall)
-      setLoading(false)
-    } catch (error) {
-      console.error('Failed to fetch admin data:', error)
-      setLoading(false)
-    }
-  }
-
-  fetchData()
-}, [])
-
 export default function AdminDashboard() {
   const { user } = useAuth()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('users')
+  const [users, setUsers] = useState<User[]>([])
+  const [files, setFiles] = useState<File[]>([])
+  const [analytics, setAnalytics] = useState<Analytics[]>([])
+  const [overall, setOverall] = useState<OverallStats | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [usersRes, filesRes, analyticsRes] = await Promise.all([
+          fetch('/api/admin/users'),
+          fetch('/api/admin/files'),
+          fetch('/api/admin/analytics')
+        ])
+
+        if (!usersRes.ok || !filesRes.ok || !analyticsRes.ok) {
+          throw new Error('Failed to fetch data')
+        }
+
+        const usersData = await usersRes.json()
+        const filesData = await filesRes.json()
+        const analyticsData = await analyticsRes.json()
+
+        setUsers(usersData.users)
+        setFiles(filesData.files)
+        setAnalytics(analyticsData.analytics)
+        setOverall(analyticsData.overall)
+        setLoading(false)
+      } catch (error) {
+        console.error('Failed to fetch admin data:', error)
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -405,4 +402,3 @@ export default function AdminDashboard() {
     </div>
   )
 }
-
