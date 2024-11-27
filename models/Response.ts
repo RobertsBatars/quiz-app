@@ -1,4 +1,8 @@
 import mongoose from 'mongoose';
+import dbConnect from '@/lib/db';
+
+// Ensure database connection
+dbConnect();
 
 const responseSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

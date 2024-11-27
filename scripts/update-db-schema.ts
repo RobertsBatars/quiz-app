@@ -11,7 +11,7 @@ if (!MONGODB_URI) {
 
 async function updateSchema() {
   const client = await MongoClient.connect(MONGODB_URI as string);
-  const db = client.db();
+  const db = client.db('quiz-app');
 
   // Create collections if they don't exist
   const collections = ['users', 'documents', 'quizzes', 'questions', 'responses', 'projects'];
