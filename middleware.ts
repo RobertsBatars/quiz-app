@@ -5,17 +5,23 @@ export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token
     const isAuth = !!token
-    const isAuthPage =
-      req.nextUrl.pathname.startsWith('/login') ||
-      req.nextUrl.pathname.startsWith('/register')
+    const isAuthPage = ['/login', '/register'].includes(req.nextUrl.pathname)
 
     // Allow public routes
     const isPublicRoute = [
+      '/',
       '/about',
       '/contact',
       '/privacy',
       '/terms',
-      '/api/health'
+      '/api/health',
+      '/api/auth/signin',
+      '/api/auth/signout',
+      '/api/auth/session',
+      '/api/auth/csrf',
+      '/api/auth/callback',
+      '/api/auth/verify-request',
+      '/api/auth/error'
     ].includes(req.nextUrl.pathname)
 
     if (isPublicRoute) {
@@ -32,13 +38,12 @@ export default withAuth(
 
     // Check authentication
     if (!isAuth) {
-      let from = req.nextUrl.pathname
-      if (req.nextUrl.search) {
-        from += req.nextUrl.search
-      }
-
+      const from = req.nextUrl.pathname;
+      const searchParams = new URLSearchParams(req.nextUrl.search);
+      searchParams.set('callbackUrl', from);
+      
       return NextResponse.redirect(
-        new URL(`/login?from=${encodeURIComponent(from)}`, req.url)
+        new URL(`/login?${searchParams.toString()}`, req.url)
       )
     }
 
