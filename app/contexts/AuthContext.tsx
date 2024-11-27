@@ -27,6 +27,7 @@ interface AuthContextType {
   logout: () => Promise<void>
   createProject: (name: string) => Promise<void>
   getProjects: () => Promise<Project[]>
+  projects: Project[] // Add this line
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -34,6 +35,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { data: session, status } = useSession()
   const [user, setUser] = useState<User | null>(null)
+  const [projects, setProjects] = useState<Project[]>([]) // Add this line
   const router = useRouter()
   const { showNotification } = useNotification()
 
@@ -59,11 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
 
       if (result?.error) {
-        showNotification({
-          title: 'Error',
-          message: 'Invalid email or password',
-          type: 'error',
-        })
+        showNotification('error', 'Invalid email or password')
         throw new Error(result.error)
       }
     } catch (error) {
@@ -93,11 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(data.error)
       }
 
-      showNotification({
-        title: 'Success',
-        message: 'Registration successful',
-        type: 'success',
-      })
+      showNotification('success', 'Registration successful')
 
       // Login after successful registration
       await login(email, password)
@@ -146,6 +140,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         type: 'success',
       })
 
+      setProjects((prevProjects) => [...prevProjects, data.project]) // Add this line
+
       return data.project
     } catch (error) {
       console.error('Create project error:', error)
@@ -163,6 +159,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!response.ok) {
         throw new Error(data.error)
       }
+
+      setProjects(data.projects) // Add this line
 
       return data.projects
     } catch (error) {
@@ -182,6 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         createProject,
         getProjects,
+        projects, // Add this line
       }}
     >
       {children}
@@ -196,4 +195,3 @@ export const useAuth = () => {
   }
   return context
 }
-

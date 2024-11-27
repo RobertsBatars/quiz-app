@@ -1,5 +1,5 @@
 import NextAuth from 'next-auth'
-import { MongoDBAdapter } from '@auth/mongodb-adapter'
+import { MongoDBAdapter } from '@next-auth/mongodb-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import clientPromise from '@/lib/mongodb'
 import bcrypt from 'bcryptjs'
@@ -16,51 +16,105 @@ const handler = NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error('Invalid credentials')
-        }
+        try {
+          console.log('🔑 Auth attempt for email:', credentials?.email)
+          
+          if (!credentials?.email || !credentials?.password) {
+            console.log('❌ Missing credentials')
+            throw new Error('Invalid credentials')
+          }
 
-        await connectToDatabase()
+          await connectToDatabase()
+          console.log('✅ DB connected')
 
-        const user = await User.findOne({ email: credentials.email })
+          const user = await User.findOne({ email: credentials.email })
+          console.log('🔍 User found:', user ? 'Yes' : 'No')
 
-        if (!user) {
-          throw new Error('Invalid credentials')
-        }
+          if (!user) {
+            console.log('❌ User not found')
+            throw new Error('Invalid credentials')
+          }
 
-        // Check if user is banned or deleted
-        if (user.status !== 'active') {
-          throw new Error('Account is ' + user.status)
-        }
+          console.log('👤 User status:', user.status)
+          if (user.status !== 'active') {
+            console.log('❌ User not active')
+            throw new Error('Account is ' + user.status)
+          }
 
-        // Check if account is locked
-        if (user.lockUntil && user.lockUntil > new Date()) {
-          throw new Error('Account is temporarily locked. Try again later.')
-        }
+          console.log('🔒 Checking account lock...')
+          if (user.lockUntil && user.lockUntil > new Date()) {
+            console.log('❌ Account locked until:', user.lockUntil)
+            throw new Error('Account is temporarily locked. Try again later.')
+          }
 
-        const isValid = await bcrypt.compare(credentials.password, user.password)
+          console.log('🔐 Validating password...')
+          const isValid = await bcrypt.compare(credentials.password, user.password)
+          console.log('🔑 Password valid:', isValid)
 
-        if (!isValid) {
-          // Increment login attempts
+          if (isValid) {
+            console.log('📝 Current user state:', JSON.stringify(user.toObject(), null, 2))
+
+            // Use minimum date instead of null for lockUntil
+            const updateDoc = {
+              loginAttempts: 0,
+              lockUntil: new Date(0), // Use minimum date instead of null
+              lastLogin: new Date()
+            }
+            console.log('📝 Update document:', JSON.stringify(updateDoc, null, 2))
+
+            try {
+              await User.updateOne(
+                { _id: user._id },
+                { $set: updateDoc }
+              )
+              console.log('✅ User updated successfully')
+            } catch (error) {
+              console.error('❌ Update failed:', error)
+              const updateError = error as { errInfo?: { details?: { schemaRulesNotSatisfied?: unknown } } }
+              if (updateError.errInfo?.details?.schemaRulesNotSatisfied) {
+                console.error('Schema validation errors:', 
+                  JSON.stringify(updateError.errInfo.details.schemaRulesNotSatisfied, null, 2)
+                )
+              }
+              throw error
+            }
+
+            console.log('✅ Login successful')
+            return {
+              id: user._id.toString(),
+              email: user.email,
+              name: user.name,
+              role: user.role,
+              status: user.status,
+              settings: user.settings
+            }
+          }
+
           user.loginAttempts = (user.loginAttempts || 0) + 1
+          console.log('❌ Login attempts:', user.loginAttempts)
 
-          // Lock account after 5 failed attempts
           if (user.loginAttempts >= 5) {
-            user.lockUntil = new Date(Date.now() + 15 * 60 * 1000) // Lock for 15 minutes
+            user.lockUntil = new Date(Date.now() + 15 * 60 * 1000)
+            console.log('�� Account locked until:', user.lockUntil)
           }
 
           await user.save()
           throw new Error('Invalid credentials')
+        } catch (error) {
+          console.error('❌ Auth error:', error)
+          throw error
         }
-
-        // Reset login attempts and lock on successful login
-        user.loginAttempts = 0
-        user.lockUntil = null
-        user.lastLogin = new Date()
-        await user.save()
-
+      }
+    })
+  ],
+  callbacks: {
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (account && user) {
+        console.log('🔑 Creating JWT token for user:', user.email)
         return {
-          id: user._id.toString(),
+          ...token,
+          id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
@@ -68,31 +122,21 @@ const handler = NextAuth({
           settings: user.settings
         }
       }
-    })
-  ],
-  session: {
-    strategy: 'jwt'
-  },
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role
-        token.id = user.id
-        token.status = user.status
-        token.settings = user.settings
-      }
+      console.log('🔄 Reusing existing token:', token.email)
       return token
     },
     async session({ session, token }) {
+      console.log('📝 Creating session from token:', token.email)
       if (session?.user) {
-        session.user.role = token.role as string
         session.user.id = token.id as string
-        session.user.status = token.status as string
+        session.user.role = token.role as 'user' | 'admin'
+        session.user.status = token.status as 'active' | 'banned' | 'deleted'
         session.user.settings = token.settings as {
           emailNotifications: boolean
           twoFactorEnabled: boolean
           theme: 'light' | 'dark' | 'system'
         }
+        console.log('✅ Session created:', session.user.email)
       }
       return session
     }

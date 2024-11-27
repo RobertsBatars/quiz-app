@@ -9,14 +9,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { PlusCircle } from 'lucide-react'
 
+interface Project {
+  id: string
+  name: string
+  userId: string
+}
+
 export default function Dashboard() {
   const { user, createProject, projects } = useAuth()
   const router = useRouter()
   const [newProjectName, setNewProjectName] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (!user) {
       router.push('/login')
+    } else {
+      setIsLoading(false)
     }
   }, [user, router])
 
@@ -27,7 +36,7 @@ export default function Dashboard() {
     }
   }
 
-  if (!user) {
+  if (isLoading || !user) {
     return null
   }
 
@@ -51,7 +60,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map((project) => (
+        {(projects || []).map((project: Project) => (
           <Card key={project.id}>
             <CardHeader>
               <CardTitle>{project.name}</CardTitle>
