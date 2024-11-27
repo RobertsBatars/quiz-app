@@ -1,4 +1,8 @@
 import mongoose from 'mongoose';
+import dbConnect from '@/lib/db';
+
+// Ensure database connection
+dbConnect();
 
 const questionSchema = new mongoose.Schema({
   quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', required: true },

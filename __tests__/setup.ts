@@ -3,8 +3,14 @@ import { TextEncoder, TextDecoder } from 'util';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder as any;
+// Fix for TextEncoder/TextDecoder not defined
+const { TextEncoder: NodeTextEncoder, TextDecoder: NodeTextDecoder } = require('util');
+global.TextEncoder = NodeTextEncoder;
+global.TextDecoder = NodeTextDecoder;
+
+// Fix for URL not defined
+const { URL } = require('url');
+global.URL = URL;
 
 let mongod: MongoMemoryServer;
 

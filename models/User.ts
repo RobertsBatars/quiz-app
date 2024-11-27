@@ -1,4 +1,8 @@
 import mongoose from 'mongoose'
+import dbConnect from '@/lib/db'
+
+// Ensure database connection
+dbConnect()
 
 export interface IUser extends mongoose.Document {
   email: string
