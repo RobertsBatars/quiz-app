@@ -32,7 +32,7 @@ An advanced quiz platform that uses AI to automatically generate quizzes from up
 
 1. **Clone and Install**
    ```bash
-   git clone <repository-url>
+   git clone github.com/RobertsBatars/quiz-app
    cd quiz-app
    npm install
    ```
