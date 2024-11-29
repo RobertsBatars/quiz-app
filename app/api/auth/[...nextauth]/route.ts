@@ -7,7 +7,6 @@ import { connectToDatabase } from '@/lib/mongoose'
 import User from '@/models/User'
 
 const handler = NextAuth({
-  adapter: MongoDBAdapter(clientPromise),
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -54,10 +53,9 @@ const handler = NextAuth({
           if (isValid) {
             console.log('📝 Current user state:', JSON.stringify(user.toObject(), null, 2))
 
-            // Use minimum date instead of null for lockUntil
             const updateDoc = {
               loginAttempts: 0,
-              lockUntil: new Date(0), // Use minimum date instead of null
+              lockUntil: new Date(0),
               lastLogin: new Date()
             }
             console.log('📝 Update document:', JSON.stringify(updateDoc, null, 2))
@@ -108,25 +106,16 @@ const handler = NextAuth({
     })
   ],
   callbacks: {
-    async jwt({ token, user, account }) {
-      // Initial sign in
-      if (account && user) {
-        console.log('🔑 Creating JWT token for user:', user.email)
-        return {
-          ...token,
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          status: user.status,
-          settings: user.settings
-        }
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+        token.role = user.role
+        token.status = user.status
+        token.settings = user.settings
       }
-      console.log('🔄 Reusing existing token:', token.email)
       return token
     },
     async session({ session, token }) {
-      console.log('📝 Creating session from token:', token.email)
       if (session?.user) {
         session.user.id = token.id as string
         session.user.role = token.role as 'user' | 'admin'
@@ -136,7 +125,6 @@ const handler = NextAuth({
           twoFactorEnabled: boolean
           theme: 'light' | 'dark' | 'system'
         }
-        console.log('✅ Session created:', session.user.email)
       }
       return session
     }
@@ -145,24 +133,7 @@ const handler = NextAuth({
     signIn: '/login',
     error: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
-  session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-    updateAge: 24 * 60 * 60, // 24 hours
-  },
-  cookies: {
-    sessionToken: {
-      name: process.env.NODE_ENV === 'production' ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-  },
+  secret: process.env.NEXTAUTH_SECRET
 })
 
 export { handler as GET, handler as POST }

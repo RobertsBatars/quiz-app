@@ -83,11 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json()
 
       if (!response.ok) {
-        showNotification({
-          title: 'Error',
-          message: data.error || 'Registration failed',
-          type: 'error',
-        })
+        showNotification('error', data.error || 'Registration failed')
         throw new Error(data.error)
       }
 
@@ -126,19 +122,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json()
 
       if (!response.ok) {
-        showNotification({
-          title: 'Error',
-          message: data.error || 'Failed to create project',
-          type: 'error',
-        })
+        showNotification('error', data.error || 'Failed to create project')
         throw new Error(data.error)
       }
 
-      showNotification({
-        title: 'Success',
-        message: 'Project created successfully',
-        type: 'success',
-      })
+      showNotification('success', 'Project created successfully')
 
       setProjects((prevProjects) => [...prevProjects, data.project]) // Add this line
 

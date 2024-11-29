@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { Document } from '@/models/Document';
+import Document from '@/models/Document';
 import mongoose from 'mongoose';
 
 const openai = new OpenAI({

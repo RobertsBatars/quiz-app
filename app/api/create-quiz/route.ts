@@ -36,6 +36,9 @@ export async function POST(request: NextRequest) {
       response_format: { type: "json_object" }
     })
 
+    if (!completion.choices[0].message.content) {
+      throw new Error('No content received from OpenAI');
+    }
     const generatedQuiz = JSON.parse(completion.choices[0].message.content)
     const quiz = {
       id: `${quizType}-${Date.now()}`,

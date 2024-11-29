@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from '../contexts/AuthContext' // Import useAuth
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -15,6 +16,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const [error, setError] = useState('')
+  const { user } = useAuth() // Get user from useAuth
 
   useEffect(() => {
     if (user) {
@@ -31,17 +33,15 @@ export default function Login() {
       const result = await signIn('credentials', {
         email,
         password,
-        redirect: false,
+        redirect: false
       })
 
       if (result?.error) {
         setError(result.error)
       } else {
         router.push('/dashboard')
-        router.refresh()
       }
     } catch (error) {
-      console.error('Login failed:', error)
       setError('An unexpected error occurred')
     } finally {
       setIsLoading(false)
@@ -49,32 +49,30 @@ export default function Login() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-8">
+      <Card className="max-w-md mx-auto">
         <CardHeader>
           <CardTitle>Login</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
+          <CardDescription>Sign in to your account</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
               />
             </div>
-            <div className="space-y-2">
+            <div>
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -98,4 +96,3 @@ export default function Login() {
     </div>
   )
 }
-

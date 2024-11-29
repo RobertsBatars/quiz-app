@@ -98,6 +98,9 @@ export async function POST(request: NextRequest) {
       }
 
       const queryResponse = queryCompletion.choices[0].message.parsed
+      if (!queryResponse) {
+        throw new Error('Failed to parse query response')
+      }
       const searchResults = await vectorSearch(queryResponse.query, projectId)
       
       for (const result of searchResults) {

@@ -30,7 +30,7 @@ export async function connectToDatabase() {
     const opts = {
       bufferCommands: false,
       serverApi: {
-        version: '1',
+        version: "1" as "1",
         strict: true,
         deprecationErrors: true,
       }

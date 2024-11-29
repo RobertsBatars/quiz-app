@@ -21,6 +21,9 @@ export async function generateQuiz(context: string, type: string, numQuestions: 
       response_format: { type: "json_object" }
     });
 
+    if (!completion.choices[0].message.content) {
+      throw new Error('No content received from OpenAI');
+    }
     const generatedQuiz = JSON.parse(completion.choices[0].message.content);
     return generatedQuiz.questions;
   } catch (error) {
