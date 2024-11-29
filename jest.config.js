@@ -5,16 +5,18 @@ const createJestConfig = nextJest({
 });
 
 const customJestConfig = {
+  setupFilesAfterEnv: ['<rootDir>/__tests__/jest-dom.setup.ts'],
   setupFiles: ['<rootDir>/__tests__/setup.ts'],
-  setupFilesAfterEnv: ['<rootDir>/__tests__/setup.ts', '@testing-library/jest-dom'],
   testEnvironment: 'jest-environment-jsdom',
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+  },
   globals: {
     'ts-jest': {
       tsconfig: 'tsconfig.json'
     }
   },
   injectGlobals: true,
-  testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },

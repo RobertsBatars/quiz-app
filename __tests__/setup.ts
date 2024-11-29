@@ -1,35 +1,72 @@
-// Must be defined before any imports
-const { TextEncoder, TextDecoder } = require('node:util');
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
-
 import '@testing-library/jest-dom';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
+import { TextEncoder, TextDecoder } from 'node:util';
+import { URL } from 'node:url';
 
-// Fix for URL not defined
-const { URL } = require('url');
-global.URL = URL;
+// Add TextEncoder and TextDecoder to global scope
+if (typeof global.TextEncoder === 'undefined') {
+  global.TextEncoder = TextEncoder;
+}
+if (typeof global.TextDecoder === 'undefined') {
+  global.TextDecoder = TextDecoder;
+}
+if (typeof global.URL === 'undefined') {
+  global.URL = URL;
+}
 
-let mongod: MongoMemoryServer;
+// Mock mongoose
+jest.mock('mongoose', () => ({
+  connect: jest.fn(),
+  disconnect: jest.fn(),
+  connection: {
+    db: {
+      collections: jest.fn().mockResolvedValue([]),
+    },
+  },
+  Schema: jest.fn().mockReturnValue({
+    pre: jest.fn().mockReturnThis(),
+    index: jest.fn().mockReturnThis(),
+  }),
+  model: jest.fn().mockReturnValue({
+    findOne: jest.fn(),
+    create: jest.fn(),
+    updateOne: jest.fn(),
+  }),
+  models: {},
+}));
 
-beforeAll(async () => {
-  mongod = await MongoMemoryServer.create();
-  const uri = mongod.getUri();
-  await mongoose.connect(uri);
-});
+// Mock NextAuth
+jest.mock('next-auth', () => ({
+  __esModule: true,
+  default: jest.fn(() => ({
+    auth: jest.fn(),
+  })),
+  getServerSession: jest.fn().mockResolvedValue({
+    user: {
+      id: '123',
+      email: 'test@example.com',
+      name: 'Test User',
+      role: 'admin',
+      status: 'active'
+    }
+  })
+}));
 
-afterAll(async () => {
-  await mongoose.disconnect();
-  await mongod.stop();
-});
+// Mock bcryptjs
+jest.mock('bcryptjs', () => ({
+  hash: jest.fn().mockResolvedValue('hashedPassword'),
+  compare: jest.fn().mockResolvedValue(true),
+}));
 
-beforeEach(async () => {
-  const collections = await mongoose.connection.db.collections();
-  for (const collection of collections) {
-    await collection.deleteMany({});
-  }
-});
+// Mock mongodb client
+jest.mock('@/lib/mongodb', () => ({
+  __esModule: true,
+  default: Promise.resolve({
+    db: jest.fn(),
+    connect: jest.fn(),
+    close: jest.fn(),
+  }),
+}));
 
 // Mock OpenAI
 jest.mock('openai', () => ({

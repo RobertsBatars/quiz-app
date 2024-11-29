@@ -16,6 +16,12 @@ export default function Login() {
   const router = useRouter()
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard')
+    }
+  }, [user, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)

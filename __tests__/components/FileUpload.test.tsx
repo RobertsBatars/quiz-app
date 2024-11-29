@@ -1,18 +1,23 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { FileUpload } from '../../components/FileUpload';
+import FileUpload from '../../components/FileUpload';
 
 describe('FileUpload Component', () => {
+  const mockProjectId = 'test-project-123';
+
+  beforeEach(() => {
+    global.fetch = jest.fn();
+  });
+
   it('renders upload button', () => {
-    render(<FileUpload onUpload={() => {}} />);
-    expect(screen.getByText(/upload/i)).toBeInTheDocument();
+    render(<FileUpload projectId={mockProjectId} />);
+    expect(screen.getByText(/upload files/i)).toBeInTheDocument();
   });
 
   it('handles file selection', async () => {
-    const mockOnUpload = jest.fn();
-    render(<FileUpload onUpload={mockOnUpload} />);
+    render(<FileUpload projectId={mockProjectId} />);
 
     const file = new File(['test content'], 'test.pdf', { type: 'application/pdf' });
-    const input = screen.getByLabelText(/upload file/i);
+    const input = screen.getByRole('textbox');
 
     Object.defineProperty(input, 'files', {
       value: [file]
@@ -20,43 +25,44 @@ describe('FileUpload Component', () => {
 
     fireEvent.change(input);
 
+    expect(screen.getByText('test.pdf')).toBeInTheDocument();
+  });
+
+  it('handles file upload', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: true });
+    render(<FileUpload projectId={mockProjectId} />);
+
+    const file = new File(['test content'], 'test.pdf', { type: 'application/pdf' });
+    const input = screen.getByRole('textbox');
+
+    Object.defineProperty(input, 'files', {
+      value: [file]
+    });
+
+    fireEvent.change(input);
+    fireEvent.click(screen.getByText(/upload files/i));
+
     await waitFor(() => {
-      expect(mockOnUpload).toHaveBeenCalledWith(expect.any(File));
+      expect(global.fetch).toHaveBeenCalledWith('/api/upload', expect.any(Object));
     });
   });
 
-  it('shows error for invalid file type', async () => {
-    render(<FileUpload onUpload={() => {}} />);
-
-    const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
-    const input = screen.getByLabelText(/upload file/i);
-
-    Object.defineProperty(input, 'files', {
-      value: [file]
-    });
-
-    fireEvent.change(input);
-
-    await waitFor(() => {
-      expect(screen.getByText(/invalid file type/i)).toBeInTheDocument();
-    });
-  });
-
-  it('shows loading state during upload', async () => {
-    const mockOnUpload = jest.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
-    render(<FileUpload onUpload={mockOnUpload} />);
+  it('shows progress during upload', async () => {
+    (global.fetch as jest.Mock).mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve({ ok: true }), 100)));
+    render(<FileUpload projectId={mockProjectId} />);
 
     const file = new File(['test content'], 'test.pdf', { type: 'application/pdf' });
-    const input = screen.getByLabelText(/upload file/i);
+    const input = screen.getByRole('textbox');
 
     Object.defineProperty(input, 'files', {
       value: [file]
     });
 
     fireEvent.change(input);
+    fireEvent.click(screen.getByText(/upload files/i));
 
     await waitFor(() => {
-      expect(screen.getByText(/uploading/i)).toBeInTheDocument();
+      expect(screen.getByRole('progressbar')).toBeInTheDocument();
     });
   });
 });

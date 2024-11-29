@@ -1,0 +1,81 @@
+
+> ai-quiz-maker@0.1.0 test
+> jest
+
+FAIL __tests__/components/FileUpload.test.tsx
+  ● Test suite failed to run
+
+    ReferenceError: expect is not defined
+
+      31 |   }
+      32 | });
+    > 33 |
+         | ^
+      34 | // Mock OpenAI
+      35 | jest.mock('openai', () => ({
+      36 |   OpenAI: jest.fn().mockImplementation(() => ({
+
+      at Object.<anonymous> (node_modules/@testing-library/jest-dom/dist/index.js:12:1)
+      at Object.<anonymous> (__tests__/setup.ts:33:1)
+
+(node:520) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+FAIL __tests__/api/auth.test.ts
+  ● Test suite failed to run
+
+    ReferenceError: expect is not defined
+
+      31 |   }
+      32 | });
+    > 33 |
+         | ^
+      34 | // Mock OpenAI
+      35 | jest.mock('openai', () => ({
+      36 |   OpenAI: jest.fn().mockImplementation(() => ({
+
+      at Object.<anonymous> (node_modules/@testing-library/jest-dom/dist/index.js:12:1)
+      at Object.<anonymous> (__tests__/setup.ts:33:1)
+
+(node:527) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+FAIL __tests__/lib/openai.test.ts
+  ● Test suite failed to run
+
+    ReferenceError: expect is not defined
+
+      31 |   }
+      32 | });
+    > 33 |
+         | ^
+      34 | // Mock OpenAI
+      35 | jest.mock('openai', () => ({
+      36 |   OpenAI: jest.fn().mockImplementation(() => ({
+
+      at Object.<anonymous> (node_modules/@testing-library/jest-dom/dist/index.js:12:1)
+      at Object.<anonymous> (__tests__/setup.ts:33:1)
+
+(node:529) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+FAIL __tests__/models/User.test.ts
+  ● Test suite failed to run
+
+    ReferenceError: expect is not defined
+
+      31 |   }
+      32 | });
+    > 33 |
+         | ^
+      34 | // Mock OpenAI
+      35 | jest.mock('openai', () => ({
+      36 |   OpenAI: jest.fn().mockImplementation(() => ({
+
+      at Object.<anonymous> (node_modules/@testing-library/jest-dom/dist/index.js:12:1)
+      at Object.<anonymous> (__tests__/setup.ts:33:1)
+
+(node:528) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Test Suites: 4 failed, 4 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        1.364 s
+Ran all test suites.
