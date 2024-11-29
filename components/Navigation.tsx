@@ -29,9 +29,11 @@ export default function Navigation() {
                     Profile
                   </Button>
                 </Link>
-                <Link href="/admin">
-                  <Button variant="ghost" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Admin (Test)</Button>
-                </Link>
+                {user.role === 'admin' && (
+                  <Link href="/admin">
+                    <Button variant="ghost" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Admin</Button>
+                  </Link>
+                )}
                 <Button variant="destructive" onClick={logout}>
                   Logout
                 </Button>

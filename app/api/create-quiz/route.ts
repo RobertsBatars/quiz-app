@@ -9,39 +9,42 @@ export async function POST(request: NextRequest) {
   const { projectId, quizType, questionAmount, customInstructions } = await request.json()
 
   try {
-    // For now, we'll use mock data instead of calling OpenAI
-    const mockQuiz = {
-      id: `${quizType}-${Date.now()}`,
-      projectId,
-      type: quizType,
-      questions: Array.from({ length: questionAmount }, (_, i) => ({
-        id: `q${i + 1}`,
-        text: `This is a mock ${quizType} question ${i + 1}`,
-        options: quizType === 'multiple-choice' ? ['Option A', 'Option B', 'Option C', 'Option D'] : undefined,
-        answer: quizType === 'multiple-choice' ? 'Option A' : 'This is a mock answer',
-      })),
-    }
-
-    // Uncomment the following code to use OpenAI when ready
-    /*
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
-          content: `You are a helpful AI assistant that generates ${quizType} quizzes. Generate ${questionAmount} questions. ${customInstructions}`
+          content: `You are a helpful AI assistant that generates ${quizType} quizzes. Generate ${questionAmount} questions in JSON format with the following structure:
+          {
+            "questions": [
+              {
+                "id": "string",
+                "text": "string",
+                "options": ["string"] (for multiple-choice only),
+                "answer": "string",
+                "explanation": "string"
+              }
+            ]
+          }
+          ${customInstructions}`
         },
         {
           role: "user",
           content: "Generate the quiz now."
         }
       ],
+      response_format: { type: "json_object" }
     })
 
-    const generatedQuiz = completion.choices[0].message.content
-    */
+    const generatedQuiz = JSON.parse(completion.choices[0].message.content)
+    const quiz = {
+      id: `${quizType}-${Date.now()}`,
+      projectId,
+      type: quizType,
+      questions: generatedQuiz.questions
+    }
 
-    return NextResponse.json({ success: true, quiz: mockQuiz })
+    return NextResponse.json({ success: true, quiz })
   } catch (error) {
     console.error('Quiz generation failed:', error)
     return NextResponse.json({ success: false, error: 'Quiz generation failed' }, { status: 500 })

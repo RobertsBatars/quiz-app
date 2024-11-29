@@ -25,6 +25,29 @@ Required environment variables (.env.local):
 - Test setup in `__tests__/setup.ts`
 - Jest configuration in `jest.config.js`
 
+## Known Issues and Solutions
+1. Login page must redirect to dashboard if user is already logged in
+   - Added useEffect hook to check user state and redirect
+   - Implemented in /app/login/page.tsx
+
+2. Admin panel 401 error
+   - Added proper session handling and credentials in API requests
+   - Fixed in /app/admin/page.tsx and API routes
+
+3. Admin button visibility
+   - Added role-based check for admin button visibility
+   - Implemented in /components/Navigation.tsx
+
+4. Create-quiz functionality
+   - Implemented OpenAI integration for quiz generation
+   - Added proper JSON response format
+   - Fixed in /app/api/create-quiz/route.ts
+
+5. MongoDB adapter conflict
+   - Removed old @next-auth/mongodb-adapter
+   - Using only @auth/mongodb-adapter
+   - Updated auth configuration accordingly
+
 ## Project Structure
 /app - Next.js application routes and pages
 /components - Reusable UI components

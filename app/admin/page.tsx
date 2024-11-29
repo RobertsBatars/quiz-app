@@ -58,11 +58,31 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user || user.role !== 'admin') {
+        setLoading(false)
+        return
+      }
+
       try {
         const [usersRes, filesRes, analyticsRes] = await Promise.all([
-          fetch('/api/admin/users'),
-          fetch('/api/admin/files'),
-          fetch('/api/admin/analytics')
+          fetch('/api/admin/users', {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+          }),
+          fetch('/api/admin/files', {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+          }),
+          fetch('/api/admin/analytics', {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include'
+          })
         ])
 
         if (!usersRes.ok || !filesRes.ok || !analyticsRes.ok) {
@@ -85,7 +105,7 @@ export default function AdminDashboard() {
     }
 
     fetchData()
-  }, [])
+  }, [user])
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
