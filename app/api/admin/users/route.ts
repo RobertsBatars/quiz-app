@@ -4,7 +4,8 @@ import { authOptions } from '../../auth/[...nextauth]/route'
 import User from '@/models/User'
 import Quiz from '@/models/Quiz'
 import Response from '@/models/Response'
-import { connectDB } from '@/lib/mongodb'
+import dbConnect from '@/lib/mongodb'
+import connectDB from '@/lib/db'  // Add this import
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await connectDB()
+    await dbConnect
 
     const users = await User.find({}, {
       password: 0,

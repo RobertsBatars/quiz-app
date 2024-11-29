@@ -3,9 +3,10 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '../../auth/[...nextauth]/route'
 import Document from '@/models/Document'
 import User from '@/models/User'
-import { connectDB } from '@/lib/mongodb'
+import connectDB from '@/lib/mongodb'
 import { unlink } from 'fs/promises'
 import path from 'path'
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await connectDB()
+    await connectDB
 
     const files = await Document.find()
       .populate('userId', 'name email')
@@ -57,7 +58,7 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    await connectDB()
+    await connectDB
 
     const file = await Document.findById(fileId)
     if (!file) {
@@ -102,7 +103,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    await connectDB()
+    await connectDB
 
     const file = await Document.findById(fileId)
     if (!file) {

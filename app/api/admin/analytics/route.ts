@@ -5,7 +5,7 @@ import User from '@/models/User'
 import Quiz from '@/models/Quiz'
 import Response from '@/models/Response'
 import Document from '@/models/Document'
-import { connectDB } from '@/lib/mongodb'
+import connectDB from '@/lib/mongodb'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await connectDB()
+    await connectDB
 
     // Get monthly analytics for the last 6 months
     const now = new Date()

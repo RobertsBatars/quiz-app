@@ -1,56 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../auth/[...nextauth]/route'
+import connectDB from '@/lib/db' // Fix import
+import Quiz from '@/models/Quiz'
+import Project from '@/models/Project'
 
 export async function POST(request: NextRequest) {
-  const { projectId, quizType, questionAmount, customInstructions } = await request.json()
-
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are a helpful AI assistant that generates ${quizType} quizzes. Generate ${questionAmount} questions in JSON format with the following structure:
-          {
-            "questions": [
-              {
-                "id": "string",
-                "text": "string",
-                "options": ["string"] (for multiple-choice only),
-                "answer": "string",
-                "explanation": "string"
-              }
-            ]
-          }
-          ${customInstructions}`
-        },
-        {
-          role: "user",
-          content: "Generate the quiz now."
-        }
-      ],
-      response_format: { type: "json_object" }
+    const session = await getServerSession(authOptions)
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    await connectDB()
+
+    const { projectId, quizData } = await request.json()
+
+    // Validate project access
+    const project = await Project.findOne({ 
+      _id: projectId,
+      $or: [
+        { userId: session.user.id },
+        { 'collaborators.userId': session.user.id }
+      ]
     })
 
-    if (!completion.choices[0].message.content) {
-      throw new Error('No content received from OpenAI');
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
-    const generatedQuiz = JSON.parse(completion.choices[0].message.content)
-    const quiz = {
-      id: `${quizType}-${Date.now()}`,
-      projectId,
-      type: quizType,
-      questions: generatedQuiz.questions
-    }
+
+    // Create quiz in database
+    const quiz = await Quiz.create({
+      userId: session.user.id,
+      projectId: project._id,
+      ...quizData
+    })
+
+    // Add quiz to project
+    await Project.updateOne(
+      { _id: project._id },
+      { $push: { quizzes: quiz._id } }
+    )
 
     return NextResponse.json({ success: true, quiz })
   } catch (error) {
-    console.error('Quiz generation failed:', error)
-    return NextResponse.json({ success: false, error: 'Quiz generation failed' }, { status: 500 })
+    console.error('Quiz creation failed:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to create quiz' }, 
+      { status: 500 }
+    )
   }
 }
-

@@ -17,18 +17,18 @@ export default function CreateQuiz({ params }: { params: { id: string } }) {
   const [questionAmount, setQuestionAmount] = useState<number>(5)
   const [customInstructions, setCustomInstructions] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string>('')
 
   const handleCreateQuiz = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError('')
 
     try {
-      // Call to backend API for quiz creation
-      const response = await fetch('/api/create-quiz', {
+      // First generate quiz content
+      const generateResponse = await fetch('/api/generate-quiz', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: params.id,
           quizType,
@@ -37,17 +37,35 @@ export default function CreateQuiz({ params }: { params: { id: string } }) {
         }),
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to create quiz')
+      const generatedData = await generateResponse.json()
+      if (!generatedData.success) {
+        throw new Error(generatedData.error)
       }
 
-      const data = await response.json()
-      console.log('Generated quiz:', data)
-      
+      // Then create quiz in database
+      const createResponse = await fetch('/api/create-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: params.id,
+          quizData: {
+            title: `${quizType} Quiz`,
+            type: quizType,
+            questions: generatedData.quiz.questions,
+            status: 'draft'
+          }
+        }),
+      })
+
+      const createData = await createResponse.json()
+      if (!createResponse.ok) {
+        throw new Error(createData.error)
+      }
+
       router.push(`/project/${params.id}/quizzes`)
     } catch (error) {
-      console.error('Error creating quiz:', error)
-      // Here you would typically show an error message to the user
+      console.error('Error:', error)
+      setError(error instanceof Error ? error.message : 'Failed to create quiz')
     } finally {
       setIsLoading(false)
     }
@@ -113,4 +131,3 @@ export default function CreateQuiz({ params }: { params: { id: string } }) {
     </div>
   )
 }
-

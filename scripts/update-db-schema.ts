@@ -59,7 +59,7 @@ async function updateSchema() {
         bsonType: 'object',
         required: ['userId', 'projectId', 'fileName', 'fileType', 'status'],
         properties: {
-          userId: { bsonType: 'string' },
+          userId: { bsonType: 'objectId' }, // Change to objectId
           projectId: { bsonType: 'string' },
           fileName: { bsonType: 'string' },
           fileType: { bsonType: 'string' },
@@ -81,7 +81,7 @@ async function updateSchema() {
         bsonType: 'object',
         required: ['userId', 'projectId', 'title', 'type', 'status'],
         properties: {
-          userId: { bsonType: 'string' },
+          userId: { bsonType: 'objectId' },
           projectId: { bsonType: 'string' },
           title: { bsonType: 'string' },
           description: { bsonType: 'string' },
@@ -103,7 +103,7 @@ async function updateSchema() {
         bsonType: 'object',
         required: ['quizId', 'type', 'question'],
         properties: {
-          quizId: { bsonType: 'string' },
+          quizId: { bsonType: 'objectId' },
           type: { enum: ['multiple-choice', 'open-ended', 'flashcard'] },
           question: { bsonType: 'string' },
           options: { bsonType: 'array' },
@@ -124,8 +124,8 @@ async function updateSchema() {
         bsonType: 'object',
         required: ['userId', 'quizId', 'status'],
         properties: {
-          userId: { bsonType: 'string' },
-          quizId: { bsonType: 'string' },
+          userId: { bsonType: 'objectId' },
+          quizId: { bsonType: 'objectId' },
           answers: { bsonType: 'array' },
           totalScore: { bsonType: 'int' },
           percentageScore: { bsonType: 'double' },
@@ -145,7 +145,7 @@ async function updateSchema() {
         bsonType: 'object',
         required: ['userId', 'name'],
         properties: {
-          userId: { bsonType: 'string' },
+          userId: { bsonType: 'objectId' },
           name: { bsonType: 'string' },
           description: { bsonType: 'string' },
           documents: { bsonType: 'array' },

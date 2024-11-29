@@ -1,4 +1,5 @@
-import NextAuth from 'next-auth'
+import NextAuth, { DefaultSession, Account, User as NextAuthUser, Session } from 'next-auth'
+import { JWT } from '@auth/core/jwt'
 import { MongoDBAdapter } from '@auth/mongodb-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import clientPromise from '@/lib/mongodb'
@@ -6,7 +7,35 @@ import bcrypt from 'bcryptjs'
 import { connectToDatabase } from '@/lib/mongoose'
 import User from '@/models/User'
 
-const handler = NextAuth({
+// Extend the built-in session types
+interface ExtendedSession extends Session {
+  user: {
+    id: string
+    email: string
+    name: string
+    role: 'user' | 'admin'
+    status: 'active' | 'banned' | 'deleted'
+    settings: {
+      emailNotifications: boolean
+      twoFactorEnabled: boolean
+      theme: 'light' | 'dark' | 'system'
+    }
+  } & DefaultSession['user']
+}
+
+// Extend JWT type
+interface ExtendedJWT extends JWT {
+  id: string
+  role: 'user' | 'admin'
+  status: 'active' | 'banned' | 'deleted'
+  settings: {
+    emailNotifications: boolean
+    twoFactorEnabled: boolean
+    theme: 'light' | 'dark' | 'system'
+  }
+}
+
+export const authOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -106,25 +135,28 @@ const handler = NextAuth({
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }: { 
+      token: ExtendedJWT
+      user: NextAuthUser | null
+      account: Account | null 
+    }) {
       if (user) {
         token.id = user.id
-        token.role = user.role
-        token.status = user.status
+        token.role = user.role as 'user' | 'admin'
+        token.status = user.status as 'active' | 'banned' | 'deleted'
         token.settings = user.settings
       }
       return token
     },
-    async session({ session, token }) {
+    async session({ session, token }: {
+      session: ExtendedSession
+      token: ExtendedJWT
+    }) {
       if (session?.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as 'user' | 'admin'
-        session.user.status = token.status as 'active' | 'banned' | 'deleted'
-        session.user.settings = token.settings as {
-          emailNotifications: boolean
-          twoFactorEnabled: boolean
-          theme: 'light' | 'dark' | 'system'
-        }
+        session.user.id = token.id
+        session.user.role = token.role
+        session.user.status = token.status
+        session.user.settings = token.settings
       }
       return session
     }
@@ -134,6 +166,7 @@ const handler = NextAuth({
     error: '/login',
   },
   secret: process.env.NEXTAUTH_SECRET
-})
+}
 
+const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }
