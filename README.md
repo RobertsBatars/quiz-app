@@ -56,10 +56,6 @@ An advanced quiz platform that uses AI to automatically generate quizzes from up
    npm run dev
    ```
 
-5. **Testing**
-   ```bash
-   npm test
-   ```
 
 ## Project Structure
 
@@ -69,7 +65,6 @@ An advanced quiz platform that uses AI to automatically generate quizzes from up
 - `/models` - MongoDB schemas
 - `/scripts` - Build and setup scripts
 - `/types` - TypeScript definitions
-- `/__tests__` - Test files
 
 ## API Documentation
 
