@@ -12,69 +12,25 @@ import { motion, AnimatePresence } from "framer-motion"
 import OralExam from '@/components/OralExam'
 
 interface Question {
-  id: string;
-  text: string;
+  _id: string;
+  question: string;
   type: 'multiple-choice' | 'open-ended' | 'flash-cards' | 'oral-exam';
   options?: string[];
-  answer?: string;
+  correctAnswer?: string;
+  explanation?: string;
+  aiRubric?: {
+    keyPoints: string[];
+    scoringCriteria: string;
+  };
 }
 
-const mockQuizzes = {
-  'multiple-choice-1': [
-    {
-      id: '1',
-      text: 'What is the capital of France?',
-      type: 'multiple-choice',
-      options: ['London', 'Berlin', 'Paris', 'Madrid'],
-      answer: 'Paris',
-    },
-    {
-      id: '2',
-      text: 'Which planet is known as the Red Planet?',
-      type: 'multiple-choice',
-      options: ['Mars', 'Venus', 'Jupiter', 'Saturn'],
-      answer: 'Mars',
-    },
-  ],
-  'open-ended-1': [
-    {
-      id: '1',
-      text: 'Explain the process of photosynthesis.',
-      type: 'open-ended',
-    },
-    {
-      id: '2',
-      text: 'Describe the main themes in Shakespeare\'s "Hamlet".',
-      type: 'open-ended',
-    },
-  ],
-  'flash-cards-1': [
-    {
-      id: '1',
-      text: 'What is the chemical symbol for gold?',
-      type: 'flash-cards',
-      answer: 'Au',
-    },
-    {
-      id: '2',
-      text: 'In which year did World War II end?',
-      type: 'flash-cards',
-      answer: '1945',
-    },
-  ],
-  'oral-exam-1': [
-    {
-      id: '1',
-      text: 'Explain the concept of climate change and its potential impacts on global ecosystems.',
-      type: 'oral-exam',
-    },
-    {
-      id: '2',
-      text: 'Describe the main features of a democratic political system and compare it to other forms of government.',
-      type: 'oral-exam',
-    },
-  ],
-};
+interface Quiz {
+  _id: string;
+  title: string;
+  type: 'multiple-choice' | 'open-ended' | 'flash-cards' | 'oral-exam';
+  questions: Question[];
+  status: 'draft' | 'published' | 'archived';
+}
 
 export default function Quiz({ params }: { params: { id: string; quizId: string } }) {
   const { user } = useAuth()
@@ -88,20 +44,33 @@ export default function Quiz({ params }: { params: { id: string; quizId: string 
   useEffect(() => {
     if (!user) {
       router.push('/login')
-    } else {
-      console.log('Quiz ID:', params.quizId)
-      const quizQuestions = mockQuizzes[params.quizId as keyof typeof mockQuizzes]
-      if (quizQuestions) {
-        setQuestions(quizQuestions as Question[])
-      } else {
-        console.error('Quiz not found')
+      return
+    }
+
+    const fetchQuiz = async () => {
+      try {
+        const response = await fetch(`/api/quizzes/${params.quizId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch quiz')
+        }
+        const data = await response.json()
+        if (data.success && data.quiz) {
+          setQuestions(data.quiz.questions)
+        } else {
+          console.error('Quiz not found')
+          router.push(`/project/${params.id}/quizzes`)
+        }
+      } catch (error) {
+        console.error('Error fetching quiz:', error)
         router.push(`/project/${params.id}/quizzes`)
       }
     }
+
+    fetchQuiz()
   }, [user, router, params.id, params.quizId])
 
   const handleAnswer = (answer: string) => {
-    setUserAnswers({ ...userAnswers, [questions[currentQuestion].id]: answer })
+    setUserAnswers({ ...userAnswers, [questions[currentQuestion]._id]: answer })
   }
 
   const handleNext = () => {
@@ -120,10 +89,11 @@ export default function Quiz({ params }: { params: { id: string; quizId: string 
 
   const handleSubmit = () => {
     const results = questions.map((question, index) => {
-      const userAnswer = userAnswers[question.id] || 'No answer provided'
-      return `Question ${index + 1}: ${question.text}
+      const userAnswer = userAnswers[question._id] || 'No answer provided'
+      return `Question ${index + 1}: ${question.question}
 Your Answer: ${userAnswer}
-${question.answer ? `Correct Answer: ${question.answer}` : 'This question will be reviewed manually.'}`
+${question.correctAnswer ? `Correct Answer: ${question.correctAnswer}
+Explanation: ${question.explanation}` : 'This question will be reviewed manually.'}`
     })
     setQuizResults(results.join('\n\n'))
   }
@@ -141,12 +111,12 @@ ${question.answer ? `Correct Answer: ${question.answer}` : 'This question will b
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Question {currentQuestion + 1}</CardTitle>
-            <CardDescription>{question.text}</CardDescription>
+            <CardDescription>{question.question}</CardDescription>
           </CardHeader>
           <CardContent>
             {question.type === 'multiple-choice' && (
               <RadioGroup
-                value={userAnswers[question.id] || ''}
+                value={userAnswers[question._id] || ''}
                 onValueChange={(value) => handleAnswer(value)}
               >
                 {question.options?.map((option) => (
@@ -159,7 +129,7 @@ ${question.answer ? `Correct Answer: ${question.answer}` : 'This question will b
             )}
             {question.type === 'open-ended' && (
               <Input
-                value={userAnswers[question.id] || ''}
+                value={userAnswers[question._id] || ''}
                 onChange={(e) => handleAnswer(e.target.value)}
                 placeholder="Type your answer here"
               />
@@ -178,7 +148,7 @@ ${question.answer ? `Correct Answer: ${question.answer}` : 'This question will b
                       onClick={() => setShowAnswer(true)}
                     >
                       <h3 className="text-2xl font-bold mb-4">Click to reveal answer</h3>
-                      <p className="text-lg">{question.text}</p>
+                      <p className="text-lg">{question.question}</p>
                     </motion.div>
                   ) : (
                     <motion.div
@@ -191,14 +161,14 @@ ${question.answer ? `Correct Answer: ${question.answer}` : 'This question will b
                       onClick={() => setShowAnswer(false)}
                     >
                       <h3 className="text-2xl font-bold mb-4">Answer</h3>
-                      <p className="text-lg">{question.answer}</p>
+                      <p className="text-lg">{question.correctAnswer}</p>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             )}
             {question.type === 'oral-exam' && (
-              <OralExam question={question.text} />
+              <OralExam question={question.question} />
             )}
           </CardContent>
           <CardFooter className="flex justify-between">
