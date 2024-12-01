@@ -50,16 +50,16 @@ export async function POST(request: NextRequest) {
     console.log('📝 Raw questions data:', typeof quizData.questions, quizData.questions)
 
     // Parse and validate questions with detailed logging
-    let parsedQuestions
-    try {
-      parsedQuestions = Array.isArray(quizData.questions) 
-        ? quizData.questions 
-        : JSON.parse(quizData.questions)
-      console.log('✅ Questions parsed successfully')
-    } catch (parseError) {
-      console.error('❌ Question parsing failed:', parseError)
-      throw parseError
+    let parsedQuestions = quizData.questions
+    if (typeof quizData.questions === 'string') {
+      try {
+        parsedQuestions = JSON.parse(quizData.questions)
+      } catch (parseError) {
+        console.error('❌ Question parsing failed:', parseError)
+        throw parseError
+      }
     }
+    console.log('✅ Questions parsed successfully')
 
     // Log parsed questions structure
     console.log('📋 Parsed questions structure:', 
