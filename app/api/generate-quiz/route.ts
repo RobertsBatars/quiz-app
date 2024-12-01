@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are an AI that generates high-quality ${quizType} quizzes...`
+          content: `You are an AI that generates high-quality ${quizType} quizzes. ${customInstructions || ''}`
         },
         {
           role: 'user',
