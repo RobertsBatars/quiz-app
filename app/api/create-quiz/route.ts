@@ -96,6 +96,15 @@ export async function POST(request: NextRequest) {
         status: quizData.status || 'draft'
       })
       console.log('✅ Quiz created:', quiz._id)
+
+      // Update project with new quiz
+      await Project.findByIdAndUpdate(
+        projectId,
+        { $push: { quizzes: quiz._id } },
+        { new: true }
+      )
+      console.log('✅ Project updated with new quiz')
+
       return NextResponse.json({ success: true, quiz })
     } catch (dbError: any) {
       console.error('❌ DB Error details:')
