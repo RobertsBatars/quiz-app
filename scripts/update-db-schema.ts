@@ -14,7 +14,7 @@ async function updateSchema() {
   const db = client.db('quiz-app');
 
   // Create collections if they don't exist
-  const collections = ['users', 'documents', 'quizzes', 'questions', 'responses', 'projects'];
+  const collections = ['users', 'documents', 'quizzes', 'responses', 'projects'];
   for (const collection of collections) {
     const exists = await db.listCollections({ name: collection }).hasNext();
     if (!exists) {
@@ -82,11 +82,37 @@ async function updateSchema() {
         required: ['userId', 'projectId', 'title', 'type', 'status'],
         properties: {
           userId: { bsonType: 'objectId' },
-          projectId: { bsonType: 'string' },
+          projectId: { bsonType: 'objectId' },
           title: { bsonType: 'string' },
           description: { bsonType: 'string' },
-          type: { enum: ['multiple-choice', 'open-ended', 'flashcard', 'oral'] },
-          questions: { bsonType: 'array' },
+          type: { enum: ['multiple-choice', 'open-ended', 'flash-cards', 'oral-exam'] },
+          questions: {
+            bsonType: 'array',
+            items: {
+              bsonType: 'object',
+              required: ['question', 'type'],
+              properties: {
+                question: { bsonType: 'string' },
+                type: { enum: ['multiple-choice', 'open-ended', 'flashcard'] },
+                options: { 
+                  bsonType: 'array',
+                  items: { bsonType: 'string' }
+                },
+                correctAnswer: { bsonType: 'string' },
+                explanation: { bsonType: 'string' },
+                aiRubric: { 
+                  bsonType: 'object',
+                  properties: {
+                    keyPoints: {
+                      bsonType: 'array',
+                      items: { bsonType: 'string' }
+                    },
+                    scoringCriteria: { bsonType: 'string' }
+                  }
+                }
+              }
+            }
+          },
           timeLimit: { bsonType: 'int' },
           passingScore: { bsonType: 'int' },
           status: { enum: ['draft', 'published', 'archived'] }
@@ -95,26 +121,8 @@ async function updateSchema() {
     }
   });
 
-  // Update Questions collection
-  await db.command({
-    collMod: 'questions',
-    validator: {
-      $jsonSchema: {
-        bsonType: 'object',
-        required: ['quizId', 'type', 'question'],
-        properties: {
-          quizId: { bsonType: 'objectId' },
-          type: { enum: ['multiple-choice', 'open-ended', 'flashcard'] },
-          question: { bsonType: 'string' },
-          options: { bsonType: 'array' },
-          correctAnswer: { bsonType: 'string' },
-          explanation: { bsonType: 'string' },
-          points: { bsonType: 'int' },
-          aiRubric: { bsonType: 'object' }
-        }
-      }
-    }
-  });
+  // Remove Questions collection since questions are now embedded
+  await db.dropCollection('questions');
 
   // Update Responses collection
   await db.command({
@@ -171,7 +179,6 @@ async function updateSchema() {
   await db.collection('users').createIndex({ email: 1 }, { unique: true });
   await db.collection('documents').createIndex({ userId: 1, projectId: 1 });
   await db.collection('quizzes').createIndex({ userId: 1, projectId: 1 });
-  await db.collection('questions').createIndex({ quizId: 1 });
   await db.collection('responses').createIndex({ userId: 1, quizId: 1 });
   await db.collection('projects').createIndex({ userId: 1 });
 
