@@ -77,8 +77,8 @@ const QUIZ_SCHEMAS = {
 
 export async function POST(request: NextRequest) {
   console.log('🚀 Starting quiz generation...')
-  const { content, quizType, projectId, customInstructions } = await request.json()
-  console.log('📦 Request data:', { quizType, projectId })
+  const { content, quizType, projectId, customInstructions, questionCount = 5 } = await request.json()
+  console.log('📦 Request data:', { quizType, projectId, questionCount })
 
   try {
     await connectDB()
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are an AI that generates high-quality ${quizType} quizzes. ${customInstructions || ''}`
+          content: `You are an AI that generates high-quality ${quizType} quizzes. Generate exactly ${questionCount} questions. ${customInstructions || ''}`
         },
         {
           role: 'user',
