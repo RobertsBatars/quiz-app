@@ -18,24 +18,52 @@ export default function ProjectQuizzes({ params }: { params: { id: string } }) {
   const { user } = useAuth()
   const router = useRouter()
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (!user) {
       router.push('/login')
-    } else {
-      // In a real app, fetch quizzes for this project from the backend
-      setQuizzes([
-        { id: 'multiple-choice-1', name: 'General Knowledge', type: 'multiple-choice' },
-        { id: 'open-ended-1', name: 'Essay Questions', type: 'open-ended' },
-        { id: 'flash-cards-1', name: 'Vocabulary Review', type: 'flash-cards' },
-        { id: 'oral-exam-1', name: 'Speaking Practice', type: 'oral-exam' },
-      ])
+      return
     }
-  }, [user, router])
 
-  if (!user) {
-    return null
-  }
+    const fetchQuizzes = async () => {
+      try {
+        const response = await fetch(`/api/quizzes?projectId=${params.id}`)
+        
+        if (response.status === 404) {
+          // Handle 404 as empty state
+          setQuizzes([])
+          setError('')
+          return
+        }
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch quizzes')
+        }
+        
+        const data = await response.json()
+        setQuizzes(data.quizzes?.map((quiz: any) => ({
+          id: quiz._id,
+          name: quiz.title,
+          type: quiz.type
+        })) || [])
+        setError('')
+      } catch (err) {
+        console.error('Error fetching quizzes:', err)
+        // Only show error for actual failures
+        if (err instanceof Error && err.message !== 'Failed to fetch quizzes') {
+          setError('An unexpected error occurred. Please try again.')
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchQuizzes()
+  }, [user, router, params.id])
+
+  if (!user) return null
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-8">
@@ -45,24 +73,41 @@ export default function ProjectQuizzes({ params }: { params: { id: string } }) {
           <PlusCircle className="mr-2 h-4 w-4" /> Create New Quiz
         </Button>
       </Link>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {quizzes.map((quiz) => (
-          <Card key={quiz.id}>
-            <CardHeader>
-              <CardTitle>{quiz.name}</CardTitle>
-              <CardDescription>Type: {quiz.type.replace('-', ' ')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href={`/project/${params.id}/quiz/${quiz.id}`} passHref>
-                <Button className="w-full" variant="default">
-                  Take Quiz
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      
+      {error && (
+        <div className="text-red-500 mb-4">{error}</div>
+      )}
+      
+      {isLoading ? (
+        <div>Loading quizzes...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {quizzes.length > 0 ? (
+            quizzes.map((quiz) => (
+              <Card key={quiz.id}>
+                <CardHeader>
+                  <CardTitle>{quiz.name}</CardTitle>
+                  <CardDescription>Type: {quiz.type.replace('-', ' ')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Link href={`/project/${params.id}/quiz/${quiz.id}`} passHref>
+                    <Button className="w-full" variant="default">
+                      Take Quiz
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>No Quizzes Yet</CardTitle>
+                <CardDescription>Click "Create New Quiz" to get started</CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   )
 }
-
