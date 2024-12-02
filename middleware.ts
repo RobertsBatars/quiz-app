@@ -92,6 +92,7 @@ export const config = {
     '/profile/:path*',
     '/project/:path*',
     '/api/admin/:path*',
+    '/api/documents/:path*',
     '/banned'
     // Removed /login and /register from matcher
   ],
