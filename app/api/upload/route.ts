@@ -13,23 +13,40 @@ import {
   moderateContent
 } from '@/lib/documents';
 
-export const POST = async (request: NextRequest) => {
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+export async function POST(request: NextRequest) {
+  console.log('POST /api/upload - Start');
   try {
+    console.log('Connecting to MongoDB...');
     await dbConnect();
+    console.log('MongoDB connected');
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('Getting form data...');
     const data = await request.formData();
+    console.log('Form data fields:', Array.from(data.keys()));
+    
     const file: File | null = data.get('file') as unknown as File;
     const projectId = data.get('projectId');
 
     if (!file || !projectId) {
+      console.log('Missing data:', { file: !!file, projectId: !!projectId });
       return NextResponse.json({ success: false, error: 'File or project ID missing' }, { status: 400 });
     }
+    
+    console.log('File info:', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      projectId
+    });
 
-    // Create document record in processing state
+    console.log('Creating document record...');
     const document = await Document.create({
       userId: session.user.id,
       projectId: new Types.ObjectId(projectId as string),
@@ -39,24 +56,36 @@ export const POST = async (request: NextRequest) => {
       status: 'processing',
       moderationStatus: 'pending'
     });
+    console.log('Document record created:', document._id);
 
-    // Ensure upload directory exists and save file
+    console.log('Creating upload directory...');
     const uploadDir = await ensureUploadDir(projectId as string);
+    console.log('Upload directory:', uploadDir);
+    
     const filePath = path.join(uploadDir, `${document._id}_${file.name}`);
+    console.log('File path:', filePath);
+    
     document.path = filePath;
     await document.save();
+    console.log('Document path saved');
 
+    console.log('Writing file...');
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
+    console.log('File written successfully');
 
-    // Extract text content
+    console.log('Extracting text content...');
     const content = await extractTextFromFile(filePath, file.type);
     document.content = content;
+    console.log('Text content extracted:', content.substring(0, 100) + '...');
 
-    // Moderate content
+    console.log('Moderating content...');
     const moderationResult = await moderateContent(content);
+    console.log('Moderation result:', moderationResult);
+    
     if (moderationResult.flagged) {
+      console.log('Content flagged by moderation');
       document.moderationStatus = 'rejected';
       document.moderationReason = moderationResult.reason;
       document.status = 'error';
@@ -68,19 +97,28 @@ export const POST = async (request: NextRequest) => {
       }, { status: 400 });
     }
 
-    // Generate embeddings
+    console.log('Generating embeddings...');
     const embeddings = await generateEmbeddings(content);
+    console.log('Embeddings generated, length:', embeddings.length);
+    
     document.embeddings = embeddings;
     document.moderationStatus = 'approved';
     document.status = 'completed';
     await document.save();
+    console.log('Document processing completed');
 
     return NextResponse.json({
       success: true,
       documentId: document._id
     });
   } catch (error) {
-    console.error('File processing failed:', error);
+    console.error('File processing failed:', {
+      error: error instanceof Error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      } : error
+    });
     return NextResponse.json({
       success: false,
       error: 'File processing failed',
