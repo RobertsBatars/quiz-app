@@ -91,6 +91,9 @@ export const config = {
     '/admin/:path*',
     '/profile/:path*',
     '/project/:path*',
-    '/api/((?!auth).*)/:path*', // Match all API routes except /api/auth/*
+    '/api/documents/:path*',
+    '/api/projects/:path*',
+    '/api/quizzes/:path*',
+    '/api/admin/:path*',
   ]
 }

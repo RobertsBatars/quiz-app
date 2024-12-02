@@ -158,6 +158,20 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Verify project exists and user has access
+    const project = await Project.findOne({
+      _id: new Types.ObjectId(projectId),
+      userId: session.user.id
+    });
+
+    if (!project) {
+      console.error(`Project ${projectId} not found or user ${session.user.id} has no access`);
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Project not found' 
+      }, { status: 404 });
+    }
+
     const documents = await Document.find({
       projectId: new Types.ObjectId(projectId),
       userId: session.user.id
@@ -177,6 +191,12 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching documents:', error);
+    if (error instanceof Error && error.name === 'CastError') {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid project ID format',
+      }, { status: 400 });
+    }
     return NextResponse.json({
       success: false,
       error: 'Failed to fetch documents',
