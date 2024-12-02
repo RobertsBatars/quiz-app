@@ -52,20 +52,42 @@ export default function FileUpload({ projectId, onUploadComplete }: FileUploadPr
       formData.append('projectId', projectId)
 
       try {
+        console.log('Uploading file:', files[i].name);
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
+          headers: {
+            // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
+          },
         })
         
-        const data = await response.json()
+        let data;
+        try {
+          const text = await response.text();
+          try {
+            data = JSON.parse(text);
+          } catch (e) {
+            console.error('Failed to parse response as JSON:', text);
+            throw new Error('Invalid JSON response from server');
+          }
+        } catch (e) {
+          console.error('Failed to get response text:', e);
+          throw new Error('Failed to read server response');
+        }
         
         if (!response.ok) {
+          console.error('Upload failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            data
+          });
           newErrors.push({
             fileName: files[i].name,
-            error: data.error || 'Upload failed',
-            details: data.details || data.reason
-          })
+            error: data?.error || 'Upload failed',
+            details: data?.details || data?.reason || `HTTP ${response.status}: ${response.statusText}`
+          });
         } else {
+          console.log('Upload successful:', data);
           successCount++;
         }
 
