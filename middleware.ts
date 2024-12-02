@@ -76,6 +76,17 @@ export default withAuth(
       }
     }
 
+    // Handle upload route
+    if (req.nextUrl.pathname === '/api/upload') {
+      if (!isAuth) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        )
+      }
+      return NextResponse.next()
+    }
+
     return NextResponse.next()
   },
   {

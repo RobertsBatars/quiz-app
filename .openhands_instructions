@@ -48,6 +48,12 @@ Required environment variables (.env.local):
    - Using only @auth/mongodb-adapter
    - Updated auth configuration accordingly
 
+6. File upload endpoint 404 error
+   - Added proper middleware handling for /api/upload route
+   - Endpoint accepts PDF, DOC, DOCX, TXT files up to 10MB
+   - Requires authentication
+   - Fixed in middleware.ts and /app/api/upload/route.ts
+
 ## Project Structure
 /app - Next.js application routes and pages
 /components - Reusable UI components

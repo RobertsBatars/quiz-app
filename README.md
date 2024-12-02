@@ -74,7 +74,7 @@ An advanced quiz platform that uses AI to automatically generate quizzes from up
 - GET `/api/auth/session` - Get session
 
 ### Documents
-- POST `/api/documents/upload` - Upload document
+- POST `/api/upload` - Upload document (requires auth, accepts PDF, DOC, DOCX, TXT up to 10MB)
 - GET `/api/documents` - List documents
 - GET `/api/documents/:id` - Get document
 - DELETE `/api/documents/:id` - Delete document
