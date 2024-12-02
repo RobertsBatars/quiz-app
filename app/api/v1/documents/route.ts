@@ -17,6 +17,12 @@ import {
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Test route to verify routing is working
+export async function GET(request: NextRequest) {
+  console.log('GET /api/documents - Test route');
+  return NextResponse.json({ message: 'Test route working' });
+}
+
 export async function POST(request: NextRequest) {
   console.log('POST /api/documents - Start');
   try {

@@ -53,7 +53,7 @@ export default function FileUpload({ projectId, onUploadComplete }: FileUploadPr
 
       try {
         console.log(`Uploading file ${i + 1}/${files.length}:`, files[i].name);
-        const response = await fetch('/api/documents', {
+        const response = await fetch('/api/v1/documents', {
           method: 'POST',
           body: formData
         });

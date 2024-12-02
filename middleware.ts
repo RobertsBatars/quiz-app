@@ -91,8 +91,8 @@ export const config = {
     '/admin/:path*',
     '/profile/:path*',
     '/project/:path*',
-    '/api/documents/:path*',
-    '/api/projects/:path*',
+    '/api/v1/documents',
+    '/api/projects',
     '/api/quizzes/:path*',
     '/api/admin/:path*',
   ]
