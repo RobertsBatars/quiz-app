@@ -59,19 +59,33 @@ async function updateSchema() {
         bsonType: 'object',
         required: ['userId', 'projectId', 'fileName', 'fileType', 'status'],
         properties: {
-          userId: { bsonType: 'objectId' }, // Change to objectId
-          projectId: { bsonType: 'string' },
+          userId: { bsonType: 'objectId' },
+          projectId: { bsonType: 'objectId' },
           fileName: { bsonType: 'string' },
           fileType: { bsonType: 'string' },
           fileSize: { bsonType: 'int' },
           path: { bsonType: 'string' },
+          content: { bsonType: 'string' },
           embeddings: { bsonType: 'array' },
           status: { enum: ['processing', 'completed', 'error'] },
-          moderationStatus: { enum: ['pending', 'approved', 'rejected'] }
+          moderationStatus: { enum: ['pending', 'approved', 'rejected'] },
+          moderationReason: { bsonType: 'string' }
         }
       }
     }
   });
+
+  // Create vector search index for embeddings
+  await db.collection('documents').createIndex(
+    { embeddings: "vectorSearch" },
+    {
+      name: "vector_index",
+      vectorSearchOptions: {
+        numDimensions: 1536, // text-embedding-ada-002 dimension
+        similarity: "cosine"
+      }
+    }
+  );
 
   // Update Quizzes collection
   await db.command({
