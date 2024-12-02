@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Document from '@/models/Document';
 import { Types } from 'mongoose';
 import { writeFile } from 'fs/promises';
 import path from 'path';
 import dbConnect from '@/lib/db';
+import Project from '@/models/Project';
 import {
   ensureUploadDir,
   extractTextFromFile,
@@ -129,82 +130,51 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('GET /api/documents - Start');
     const session = await getServerSession(authOptions);
+    
     if (!session?.user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      console.error('No session found');
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Unauthorized' 
+      }, { status: 401 });
     }
+
+    console.log('Session user:', {
+      id: session.user.id,
+      email: session.user.email
+    });
+
+    await dbConnect();
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
-    const query = searchParams.get('query');
 
     if (!projectId) {
-      return NextResponse.json({ success: false, error: 'Project ID is required' }, { status: 400 });
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Project ID is required' 
+      }, { status: 400 });
     }
 
-    let documents;
-    if (query) {
-      // If query is provided, use vector search
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'text-embedding-ada-002',
-          input: query,
-        }),
-      });
+    const documents = await Document.find({
+      projectId: new Types.ObjectId(projectId),
+      userId: session.user.id
+    })
+    .select('fileName fileType fileSize status moderationStatus moderationReason createdAt')
+    .sort('-createdAt');
 
-      const embeddings = (await response.json()).data[0].embedding;
-
-      documents = await Document.aggregate([
-        {
-          $vectorSearch: {
-            queryVector: embeddings,
-            path: "embeddings",
-            numCandidates: 10,
-            limit: 5,
-            index: "vector_index",
-          }
-        },
-        {
-          $match: {
-            projectId: new Types.ObjectId(projectId),
-            status: "completed",
-            moderationStatus: "approved"
-          }
-        },
-        {
-          $project: {
-            fileName: 1,
-            fileType: 1,
-            fileSize: 1,
-            status: 1,
-            moderationStatus: 1,
-            moderationReason: 1,
-            uploadDate: "$createdAt",
-            score: { $meta: "vectorSearchScore" }
-          }
-        }
-      ]);
-    } else {
-      // If no query, return all documents for the project
-      documents = await Document.find({
-        projectId: new Types.ObjectId(projectId),
-        userId: session.user.id,
-      }).select('fileName fileType fileSize status moderationStatus moderationReason createdAt')
-        .sort('-createdAt');
-    }
+    console.log(`Found ${documents.length} documents for project ${projectId}`);
 
     return NextResponse.json({
       success: true,
       documents: documents.map(doc => ({
         ...doc.toObject(),
-        uploadDate: doc.createdAt || doc.uploadDate,
+        uploadDate: doc.createdAt || doc.uploadDate
       }))
     });
+
   } catch (error) {
     console.error('Error fetching documents:', error);
     return NextResponse.json({

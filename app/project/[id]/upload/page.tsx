@@ -37,15 +37,28 @@ export default function ProjectUpload({ params }: { params: { id: string } }) {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`/api/documents?projectId=${params.id}`)
+      console.log('Fetching documents for project:', params.id);
+      const response = await fetch(`/api/documents?projectId=${params.id}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
       if (response.ok) {
-        const data = await response.json()
-        setDocuments(data.documents)
+        console.log('Documents fetched:', data.documents?.length || 0);
+        setDocuments(data.documents || []);
+      } else {
+        console.error('Failed to fetch documents:', data.error);
+        setDocuments([]);
       }
     } catch (error) {
-      console.error('Error fetching documents:', error)
+      console.error('Error fetching documents:', error);
+      setDocuments([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -156,4 +169,3 @@ export default function ProjectUpload({ params }: { params: { id: string } }) {
     </div>
   )
 }
-

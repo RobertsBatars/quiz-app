@@ -39,66 +39,53 @@ export default function FileUpload({ projectId, onUploadComplete }: FileUploadPr
   }
 
   const handleUpload = async () => {
-    setUploading(true)
-    setProgress(0)
-    setErrors([])
+    setUploading(true);
+    setProgress(0);
+    setErrors([]);
 
     let successCount = 0;
     const newErrors: UploadError[] = [];
 
     for (let i = 0; i < files.length; i++) {
-      const formData = new FormData()
-      formData.append('file', files[i])
-      formData.append('projectId', projectId)
+      const formData = new FormData();
+      formData.append('file', files[i]);
+      formData.append('projectId', projectId);
 
       try {
-        console.log('Uploading file:', files[i].name);
-        const response = await fetch('/api/upload', {
+        console.log(`Uploading file ${i + 1}/${files.length}:`, files[i].name);
+        const response = await fetch('/api/documents', {
           method: 'POST',
-          body: formData,
-          headers: {
-            // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
-          },
-        })
-        
+          body: formData
+        });
+
         let data;
         try {
           const text = await response.text();
-          try {
-            data = JSON.parse(text);
-          } catch (e) {
-            console.error('Failed to parse response as JSON:', text);
-            throw new Error('Invalid JSON response from server');
-          }
+          data = JSON.parse(text);
+          console.log('Upload response:', { status: response.status, data });
         } catch (e) {
-          console.error('Failed to get response text:', e);
-          throw new Error('Failed to read server response');
+          console.error('Failed to parse response:', e);
+          throw new Error('Invalid server response');
         }
-        
+
         if (!response.ok) {
-          console.error('Upload failed:', {
-            status: response.status,
-            statusText: response.statusText,
-            data
-          });
           newErrors.push({
             fileName: files[i].name,
             error: data?.error || 'Upload failed',
-            details: data?.details || data?.reason || `HTTP ${response.status}: ${response.statusText}`
+            details: data?.details || data?.reason || `HTTP ${response.status}`
           });
         } else {
-          console.log('Upload successful:', data);
           successCount++;
         }
 
-        setProgress(((i + 1) / files.length) * 100)
+        setProgress(((i + 1) / files.length) * 100);
       } catch (error) {
-        console.error('Upload failed:', error)
+        console.error('Upload error:', error);
         newErrors.push({
           fileName: files[i].name,
           error: 'Network error',
           details: error instanceof Error ? error.message : 'Unknown error'
-        })
+        });
       }
     }
 
@@ -180,4 +167,3 @@ export default function FileUpload({ projectId, onUploadComplete }: FileUploadPr
     </div>
   )
 }
-
