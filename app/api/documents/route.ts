@@ -5,7 +5,7 @@ import Document from '@/models/Document';
 import { Types } from 'mongoose';
 import { writeFile } from 'fs/promises';
 import path from 'path';
-import dbConnect from '@/lib/db';
+import connectDB from '@/lib/db';
 import Project from '@/models/Project';
 import {
   ensureUploadDir,
@@ -20,15 +20,22 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   console.log('POST /api/documents - Start');
   try {
-    console.log('Connecting to MongoDB...');
-    await dbConnect();
-    console.log('MongoDB connected');
     const session = await getServerSession(authOptions);
+    console.log('Session:', session ? 'found' : 'not found');
+    
     if (!session?.user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      console.error('No session found');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('Getting form data...');
+    console.log('Session user:', {
+      id: session.user.id,
+      email: session.user.email
+    });
+
+    await connectDB();
+    console.log('Database connected');
+
     const data = await request.formData();
     console.log('Form data fields:', Array.from(data.keys()));
     
@@ -36,8 +43,8 @@ export async function POST(request: NextRequest) {
     const projectId = data.get('projectId');
 
     if (!file || !projectId) {
-      console.log('Missing data:', { file: !!file, projectId: !!projectId });
-      return NextResponse.json({ success: false, error: 'File or project ID missing' }, { status: 400 });
+      console.error('Missing data:', { file: !!file, projectId: !!projectId });
+      return NextResponse.json({ error: 'File or project ID missing' }, { status: 400 });
     }
     
     console.log('File info:', {
@@ -46,6 +53,22 @@ export async function POST(request: NextRequest) {
       size: file.size,
       projectId
     });
+
+    // Verify project exists and user has access
+    const project = await Project.findOne({
+      _id: new Types.ObjectId(projectId as string),
+      $or: [
+        { userId: session.user.id },
+        { 'collaborators.userId': session.user.id }
+      ]
+    });
+
+    console.log('Project found:', project ? 'yes' : 'no');
+
+    if (!project) {
+      console.error(`Project ${projectId} not found or user ${session.user.id} has no access`);
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
 
     console.log('Creating document record...');
     const document = await Document.create({
@@ -92,7 +115,6 @@ export async function POST(request: NextRequest) {
       document.status = 'error';
       await document.save();
       return NextResponse.json({
-        success: false,
         error: 'Content flagged by moderation system',
         reason: moderationResult.reason
       }, { status: 400 });
@@ -110,35 +132,47 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      documentId: document._id
+      document: {
+        id: document._id,
+        fileName: document.fileName,
+        fileType: document.fileType,
+        fileSize: document.fileSize,
+        status: document.status,
+        moderationStatus: document.moderationStatus,
+        uploadDate: document.createdAt
+      }
     });
   } catch (error) {
-    console.error('File processing failed:', {
-      error: error instanceof Error ? {
+    console.error('Error processing document:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', {
         name: error.name,
         message: error.message,
         stack: error.stack
-      } : error
-    });
+      });
+      
+      if (error.name === 'CastError') {
+        return NextResponse.json({
+          error: 'Invalid project ID format'
+        }, { status: 400 });
+      }
+    }
+    
     return NextResponse.json({
-      success: false,
-      error: 'File processing failed',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Failed to process document'
     }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
+  console.log('GET /api/documents - Start');
   try {
-    console.log('GET /api/documents - Start');
     const session = await getServerSession(authOptions);
+    console.log('Session:', session ? 'found' : 'not found');
     
     if (!session?.user) {
       console.error('No session found');
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Unauthorized' 
-      }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     console.log('Session user:', {
@@ -146,30 +180,32 @@ export async function GET(request: NextRequest) {
       email: session.user.email
     });
 
-    await dbConnect();
+    await connectDB();
+    console.log('Database connected');
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get('projectId');
+    console.log('Project ID from query:', projectId);
 
     if (!projectId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Project ID is required' 
-      }, { status: 400 });
+      console.error('No project ID provided');
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
     }
 
     // Verify project exists and user has access
     const project = await Project.findOne({
       _id: new Types.ObjectId(projectId),
-      userId: session.user.id
+      $or: [
+        { userId: session.user.id },
+        { 'collaborators.userId': session.user.id }
+      ]
     });
+
+    console.log('Project found:', project ? 'yes' : 'no');
 
     if (!project) {
       console.error(`Project ${projectId} not found or user ${session.user.id} has no access`);
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Project not found' 
-      }, { status: 404 });
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
     const documents = await Document.find({
@@ -177,30 +213,45 @@ export async function GET(request: NextRequest) {
       userId: session.user.id
     })
     .select('fileName fileType fileSize status moderationStatus moderationReason createdAt')
-    .sort('-createdAt');
+    .sort('-createdAt')
+    .lean();
 
     console.log(`Found ${documents.length} documents for project ${projectId}`);
 
-    return NextResponse.json({
+    return NextResponse.json({ 
       success: true,
       documents: documents.map(doc => ({
-        ...doc.toObject(),
+        id: doc._id,
+        fileName: doc.fileName,
+        fileType: doc.fileType,
+        fileSize: doc.fileSize,
+        status: doc.status,
+        moderationStatus: doc.moderationStatus,
+        moderationReason: doc.moderationReason,
         uploadDate: doc.createdAt || doc.uploadDate
       }))
     });
 
   } catch (error) {
     console.error('Error fetching documents:', error);
-    if (error instanceof Error && error.name === 'CastError') {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid project ID format',
-      }, { status: 400 });
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
+      if (error.name === 'CastError') {
+        return NextResponse.json({
+          success: false,
+          error: 'Invalid project ID format'
+        }, { status: 400 });
+      }
     }
+    
     return NextResponse.json({
       success: false,
-      error: 'Failed to fetch documents',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Failed to fetch documents'
     }, { status: 500 });
   }
 }
