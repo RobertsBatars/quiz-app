@@ -62,7 +62,7 @@ export default function ProjectUpload({ params }: { params: { id: string } }) {
       case 'processing':
         return <Badge variant="secondary">Processing</Badge>
       case 'completed':
-        return <Badge variant="success">Completed</Badge>
+        return <Badge className="bg-green-500 hover:bg-green-600" variant="default">Completed</Badge>
       case 'error':
         return <Badge variant="destructive">Error</Badge>
       default:
@@ -75,7 +75,7 @@ export default function ProjectUpload({ params }: { params: { id: string } }) {
       case 'pending':
         return <Badge variant="secondary">Pending</Badge>
       case 'approved':
-        return <Badge variant="success">Approved</Badge>
+        return <Badge className="bg-green-500 hover:bg-green-600" variant="default">Approved</Badge>
       case 'rejected':
         return <Badge variant="destructive">Rejected</Badge>
       default:

@@ -77,13 +77,10 @@ async function updateSchema() {
 
   // Create vector search index for embeddings
   await db.collection('documents').createIndex(
-    { embeddings: "vectorSearch" },
+    { embeddings: 1 },
     {
       name: "vector_index",
-      vectorSearchOptions: {
-        numDimensions: 1536, // text-embedding-ada-002 dimension
-        similarity: "cosine"
-      }
+      background: true
     }
   );
 

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import path from 'path';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { Document } from '@/models/Document';
+import { authOptions } from '../auth/[...nextauth]/route'
+import Document from '@/models/Document';
 import { Types } from 'mongoose';
 import {
   ensureUploadDir,

@@ -1,9 +1,9 @@
-import { mkdir } from 'fs/promises';
+import { mkdir, readFile } from 'fs/promises';
 import path from 'path';
 import OpenAI from 'openai';
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
-import { Document } from '@/models/Document';
+import Document from '@/models/Document';
 import { Types } from 'mongoose';
 
 const openai = new OpenAI({
@@ -55,25 +55,41 @@ export async function generateEmbeddings(text: string): Promise<number[]> {
 
 export async function moderateContent(text: string): Promise<{ flagged: boolean; reason?: string }> {
   try {
+    // Call OpenAI moderation API
     const moderation = await openai.moderations.create({ input: text });
     const result = moderation.results[0];
     
     if (result.flagged) {
+      // Get flagged categories and join them
       const categories = Object.entries(result.categories)
         .filter(([_, flagged]) => flagged)
         .map(([category]) => category)
         .join(', ');
+      
+      // Log moderation result
+      console.log('Content moderation failed:', {
+        flagged: true,
+        categories,
+        scores: result.category_scores
+      });
       
       return {
         flagged: true,
         reason: `Content flagged for: ${categories}`
       };
     }
-    
-    return { flagged: false };
+
+    // Content is safe
+    return {
+      flagged: false
+    };
+
   } catch (error) {
-    console.error('Error moderating content:', error);
-    throw error;
+    // Log error details
+    console.error('Moderation API error:', error);
+    
+    // Re-throw with additional context
+    throw new Error('Failed to moderate content: ' + (error as Error).message);
   }
 }
 
