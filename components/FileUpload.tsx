@@ -54,7 +54,12 @@ export default function FileUpload({ projectId, onUploadComplete }: FileUploadPr
       try {
         const response = await fetch('/api/upload', {
           method: 'POST',
-          body: formData,
+          credentials: 'include',
+          headers: {
+            // Remove Content-Type header when sending FormData
+            // Content-Type will be set automatically including boundary
+          },
+          body: formData
         })
         
         const data = await response.json()
@@ -158,4 +163,3 @@ export default function FileUpload({ projectId, onUploadComplete }: FileUploadPr
     </div>
   )
 }
-
