@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route'
 import Document from '@/models/Document';
 import { Types } from 'mongoose';
+import dbConnect from '@/lib/db';
 import {
   ensureUploadDir,
   extractTextFromFile,
@@ -12,8 +13,9 @@ import {
   moderateContent
 } from '@/lib/documents';
 
-export async function POST(request: NextRequest) {
+export const POST = async (request: NextRequest) => {
   try {
+    await dbConnect();
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
