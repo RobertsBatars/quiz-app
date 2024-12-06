@@ -92,7 +92,7 @@ export const config = {
     '/profile/:path*',
     '/project/:path*',
     '/api/admin/:path*',
-    '/api/documents/upload',
+    '/api/documents/:path*',  // This will cover all document-related endpoints
     '/banned'
   ]
 }
