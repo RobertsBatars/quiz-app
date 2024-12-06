@@ -21,7 +21,9 @@ export default withAuth(
       '/api/auth/csrf',
       '/api/auth/callback',
       '/api/auth/verify-request',
-      '/api/auth/error'
+      '/api/auth/error',
+      '/api/documents/upload',
+      '/api/documents'
     ].includes(req.nextUrl.pathname)
 
     if (isPublicRoute) {
@@ -38,13 +40,21 @@ export default withAuth(
 
     // Check authentication
     if (!isAuth) {
+      // For API routes, return JSON response
+      if (req.nextUrl.pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+      // For other routes, redirect to login
       const from = req.nextUrl.pathname;
       const searchParams = new URLSearchParams(req.nextUrl.search);
       searchParams.set('callbackUrl', from);
       
       return NextResponse.redirect(
         new URL(`/login?${searchParams.toString()}`, req.url)
-      )
+      );
     }
 
     // Check if user is banned or deleted
@@ -92,7 +102,7 @@ export const config = {
     '/profile/:path*',
     '/project/:path*',
     '/api/admin/:path*',
-    '/api/upload',
+    '/api/documents/:path*',  // This will cover all document-related endpoints
     '/banned'
   ]
 }
