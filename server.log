@@ -1,0 +1,124 @@
+
+> ai-quiz-maker@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.18
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+ ✓ Ready in 1300ms
+ ✓ Compiled /api/auth/register in 260ms (62 modules)
+🔍 Connecting to database...
+🔍 Checking for existing user...
+ POST /api/auth/register 400 in 1153ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 592ms (372 modules)
+ POST /api/auth/login 400 in 980ms
+🔍 Connecting to database...
+🔍 Checking for existing user...
+🔐 Hashing password...
+📝 Creating user with schema: {
+  "email": "test.user@example.com",
+  "name": "Test User",
+  "password": "$2a$12$D/WOMDK6Rp8F5.0Vzh6f3uxa6eykvp.x5w4dEB/HX10zdBZfWUJrS",
+  "role": "user",
+  "status": "active",
+  "loginAttempts": 0,
+  "lockUntil": "1970-01-01T00:00:00.000Z",
+  "settings": {
+    "emailNotifications": true,
+    "twoFactorEnabled": false,
+    "theme": "system"
+  },
+  "projects": [],
+  "quizzes": [],
+  "documents": [],
+  "uploadedFiles": [],
+  "lastLogin": "2024-12-06T20:09:00.145Z",
+  "createdAt": "2024-12-06T20:09:00.145Z",
+  "updatedAt": "2024-12-06T20:09:00.145Z"
+}
+✅ User created successfully
+📋 User document: {
+  "email": "test.user@example.com",
+  "password": "$2a$12$D/WOMDK6Rp8F5.0Vzh6f3uxa6eykvp.x5w4dEB/HX10zdBZfWUJrS",
+  "name": "Test User",
+  "role": "user",
+  "status": "active",
+  "lastLogin": "2024-12-06T20:09:00.145Z",
+  "loginAttempts": 0,
+  "lockUntil": "1970-01-01T00:00:00.000Z",
+  "projects": [],
+  "uploadedFiles": [],
+  "quizzes": [],
+  "settings": {
+    "emailNotifications": true,
+    "twoFactorEnabled": false,
+    "theme": "system"
+  },
+  "_id": "675359dc2a68ecd6922e10ec",
+  "createdAt": "2024-12-06T20:09:00.145Z",
+  "updatedAt": "2024-12-06T20:09:00.145Z",
+  "__v": 0
+}
+🔑 Password validation: true
+🔍 User findOne test: Found
+📋 Found user: {
+  "settings": {
+    "emailNotifications": true,
+    "twoFactorEnabled": false,
+    "theme": "system"
+  },
+  "_id": "675359dc2a68ecd6922e10ec",
+  "email": "test.user@example.com",
+  "password": "$2a$12$D/WOMDK6Rp8F5.0Vzh6f3uxa6eykvp.x5w4dEB/HX10zdBZfWUJrS",
+  "name": "Test User",
+  "role": "user",
+  "status": "active",
+  "lastLogin": "2024-12-06T20:09:00.145Z",
+  "loginAttempts": 0,
+  "lockUntil": "1970-01-01T00:00:00.000Z",
+  "projects": [],
+  "uploadedFiles": [],
+  "quizzes": [],
+  "createdAt": "2024-12-06T20:09:00.145Z",
+  "updatedAt": "2024-12-06T20:09:00.145Z",
+  "__v": 0
+}
+ POST /api/auth/register 201 in 670ms
+ ✓ Compiled /api/projects in 103ms (375 modules)
+ POST /api/projects 401 in 151ms
+ POST /api/auth/callback/credentials 302 in 12ms
+ GET /api/auth/signin?csrf=true 302 in 7ms
+(node:580) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 2.4s (1006 modules)
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000 200 in 2543ms
+ ✓ Compiled in 151ms (321 modules)
+ GET /api/auth/session 200 in 16ms
+ POST /api/projects 401 in 12ms
+🔍 Connecting to database...
+🔍 Checking for existing user...
+ POST /api/auth/register 400 in 76ms
+ POST /api/auth/signin 302 in 11ms
+ GET /api/auth/signin?csrf=true 302 in 4ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000 200 in 19ms
+ GET /api/auth/session 200 in 5ms
+ POST /api/auth/callback/credentials 302 in 12ms
+ GET /api/auth/signin?csrf=true 302 in 8ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000 200 in 17ms
+ GET /api/auth/session 200 in 4ms
+ POST /api/projects 401 in 5ms
+ GET /login 200 in 16ms
+ GET /api/auth/session 200 in 12ms
+ GET /api/auth/session 200 in 7ms
+ GET /login 200 in 16ms
+ GET /api/auth/session 200 in 10ms
+ GET /api/auth/session 200 in 5ms

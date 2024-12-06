@@ -92,7 +92,7 @@ export const config = {
     '/profile/:path*',
     '/project/:path*',
     '/api/admin/:path*',
-    '/api/upload',
+    '/api/documents/upload',
     '/banned'
   ]
 }
