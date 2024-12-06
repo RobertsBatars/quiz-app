@@ -21,7 +21,9 @@ export default withAuth(
       '/api/auth/csrf',
       '/api/auth/callback',
       '/api/auth/verify-request',
-      '/api/auth/error'
+      '/api/auth/error',
+      '/api/documents/upload',
+      '/api/documents'
     ].includes(req.nextUrl.pathname)
 
     if (isPublicRoute) {
