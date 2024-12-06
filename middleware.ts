@@ -38,13 +38,21 @@ export default withAuth(
 
     // Check authentication
     if (!isAuth) {
+      // For API routes, return JSON response
+      if (req.nextUrl.pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+      // For other routes, redirect to login
       const from = req.nextUrl.pathname;
       const searchParams = new URLSearchParams(req.nextUrl.search);
       searchParams.set('callbackUrl', from);
       
       return NextResponse.redirect(
         new URL(`/login?${searchParams.toString()}`, req.url)
-      )
+      );
     }
 
     // Check if user is banned or deleted

@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { writeFile } from 'fs/promises';
 import path from 'path';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Document from '@/models/Document';
 import { Types } from 'mongoose';
 import { 
@@ -22,42 +22,58 @@ const ALLOWED_TYPES = [
 ];
 
 // Next.js 13+ App Router handlers must use named exports
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     // Check auth
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // Get form data
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    const file = formData.get('file');
     const projectId = formData.get('projectId') as string;
+    
+    if (!file || !(file instanceof File)) {
+      return new Response(JSON.stringify({ error: 'No file uploaded' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     if (!file || !projectId) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // Validate file
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: 'File too large', details: 'Maximum file size is 10MB' },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ 
+        error: 'File too large', 
+        details: 'Maximum file size is 10MB' 
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type', details: 'Supported formats: PDF, DOC, DOCX, TXT' },
-        { status: 400 }
-      );
+      return new Response(JSON.stringify({ 
+        error: 'Invalid file type', 
+        details: 'Supported formats: PDF, DOC, DOCX, TXT' 
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // Create upload directory
@@ -89,17 +105,23 @@ export async function POST(request: NextRequest) {
     // Process document in background
     processDocument(document._id.toString(), filePath, file.type).catch(console.error);
 
-    return NextResponse.json({
+    return new Response(JSON.stringify({
       success: true,
       documentId: document._id
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json(
-      { error: 'Upload failed', details: (error as Error).message },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ 
+      error: 'Upload failed', 
+      details: (error as Error).message 
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 
