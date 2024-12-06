@@ -52,7 +52,7 @@ export default function FileUpload({ projectId, onUploadComplete }: FileUploadPr
       formData.append('projectId', projectId)
 
       try {
-        const response = await fetch('/api/upload', {
+        const response = await fetch('/api/documents/upload', {
           method: 'POST',
           credentials: 'include',
           headers: {
