@@ -58,7 +58,7 @@ export async function generateEmbeddings(input: string | string[]): Promise<Embe
 export async function generateBatchEmbeddings(inputs: string[]): Promise<EmbeddingVector[]> {
   try {
     const response = await openai.embeddings.create({
-      model: "text-embedding-3-small",
+      model: "text-embedding-ada-002",
       input: inputs,
       encoding_format: "float",
     });

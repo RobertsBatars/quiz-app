@@ -11,7 +11,8 @@
     "update-db": "ts-node -P tsconfig.scripts.json -r tsconfig-paths/register scripts/update-db-schema.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "migrate-db": "tsx scripts/migrate-db.ts"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.7.4",
@@ -33,7 +34,6 @@
     "jspdf-autotable": "^3.8.1",
     "lucide-react": "^0.303.0",
     "mammoth": "^1.8.0",
-    "mongodb": "^6.11.0",
     "mongoose": "^8.8.3",
     "next": "^14.2.18",
     "next-auth": "^4.24.10",
@@ -53,6 +53,7 @@
     "@testing-library/user-event": "^14.5.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/jest": "^29.5.14",
+    "@types/mongodb": "^4.0.6",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.4",
     "@types/react": "^18",
@@ -62,6 +63,7 @@
     "eslint-config-next": "14.0.4",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "mongodb": "^6.11.0",
     "mongodb-memory-server": "^9.1.6",
     "node-mocks-http": "^1.14.1",
     "postcss": "^8.4.49",
@@ -69,6 +71,7 @@
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }

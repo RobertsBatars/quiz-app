@@ -1,12 +1,22 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, CreateIndexesOptions } from 'mongodb';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });
 
 const MONGODB_URI = process.env.MONGODB_URI;
+const EMBEDDING_SIZE = 1536;
 
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
+}
+
+interface VectorSearchOptions {
+  numDimensions: number;
+  similarity: "euclidean" | "cosine" | "dotProduct";
+}
+
+interface VectorIndexDescription extends IndexDescription {
+  vectorSearchOptions?: VectorSearchOptions;
 }
 
 async function updateSchema() {
@@ -18,6 +28,7 @@ async function updateSchema() {
   for (const collection of collections) {
     const exists = await db.listCollections({ name: collection }).hasNext();
     if (!exists) {
+      // Create regular collection instead of time-series
       await db.createCollection(collection);
     }
   }
@@ -51,13 +62,13 @@ async function updateSchema() {
     }
   });
 
-  // Update Documents collection
+  // Update Documents collection with vector validation
   await db.command({
     collMod: 'documents',
     validator: {
       $jsonSchema: {
         bsonType: 'object',
-        required: ['userId', 'projectId', 'fileName', 'fileType', 'status'],
+        required: ['userId', 'projectId', 'fileName', 'fileType', 'status', 'embeddings'],
         properties: {
           userId: { bsonType: 'objectId' },
           projectId: { bsonType: 'objectId' },
@@ -66,23 +77,58 @@ async function updateSchema() {
           fileSize: { bsonType: 'int' },
           path: { bsonType: 'string' },
           content: { bsonType: 'string' },
-          embeddings: { bsonType: 'array' },
+          embeddings: { 
+            bsonType: 'array',
+            minItems: EMBEDDING_SIZE,
+            maxItems: EMBEDDING_SIZE,
+            items: { bsonType: 'double' }
+          },
           status: { enum: ['processing', 'completed', 'error'] },
           moderationStatus: { enum: ['pending', 'approved', 'rejected'] },
-          moderationReason: { bsonType: 'string' }
+          moderationReason: { bsonType: 'string' },
+          createdAt: { bsonType: 'date' },
+          updatedAt: { bsonType: 'date' }
         }
       }
     }
   });
 
-  // Create vector search index for embeddings
+  // Drop existing vector index if exists
+  try {
+    await db.collection('documents').dropIndex("vector_index");
+  } catch (e) {
+    // Index might not exist
+  }
+
+  // Create vector search index with proper typing
+  const vectorIndex = {
+    key: {
+      embeddings: 1,
+      projectId: 1,
+      status: 1,
+      moderationStatus: 1
+    },
+    name: "vector_index",
+    vectorSearchOptions: {
+      numDimensions: EMBEDDING_SIZE,
+      similarity: "euclidean" as const
+    }
+  } as VectorIndexDescription;
+
   await db.collection('documents').createIndex(
-    { embeddings: 1 },
+    vectorIndex.key,
     {
-      name: "vector_index",
-      background: true
+      name: vectorIndex.name,
+      background: true,
+      ...vectorIndex.vectorSearchOptions && {
+        vectorSearchOptions: vectorIndex.vectorSearchOptions
+      }
+    } as CreateIndexesOptions & { 
+      vectorSearchOptions?: VectorSearchOptions 
     }
   );
+
+  console.log('Vector search index created successfully');
 
   // Update Quizzes collection
   await db.command({
@@ -186,12 +232,37 @@ async function updateSchema() {
     }
   });
 
-  // Create indexes
+  // Create indexes with timestamps
   await db.collection('users').createIndex({ email: 1 }, { unique: true });
+  await db.collection('users').createIndex({ createdAt: 1 });
+  
   await db.collection('documents').createIndex({ userId: 1, projectId: 1 });
+  await db.collection('documents').createIndex({ createdAt: 1 });
+  
   await db.collection('quizzes').createIndex({ userId: 1, projectId: 1 });
+  await db.collection('quizzes').createIndex({ createdAt: 1 });
+  
   await db.collection('responses').createIndex({ userId: 1, quizId: 1 });
+  await db.collection('responses').createIndex({ createdAt: 1 });
+  
   await db.collection('projects').createIndex({ userId: 1 });
+  await db.collection('projects').createIndex({ createdAt: 1 });
+
+  // Add timestamps to all collections
+  for (const collection of collections) {
+    await db.command({
+      collMod: collection,
+      validator: {
+        $jsonSchema: {
+          required: ["createdAt", "updatedAt"],
+          properties: {
+            createdAt: { bsonType: "date" },
+            updatedAt: { bsonType: "date" }
+          }
+        }
+      }
+    });
+  }
 
   console.log('Database schema updated successfully');
   await client.close();
