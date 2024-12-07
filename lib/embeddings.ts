@@ -39,22 +39,25 @@ function chunkText(text: string): string[] {
   return chunks;
 }
 
-export async function generateEmbeddings(input: string | string[]): Promise<Array<{content: string, embedding: EmbeddingVector}>> {
+export async function generateEmbeddings(text: string): Promise<Array<{content: string, embedding: number[]}>> {
   try {
-    const chunks = typeof input === 'string' ? 
-      chunkText(input) : 
-      input.flatMap(text => chunkText(text));
-
+    // Split text into chunks
+    const chunks = chunkText(text);
     console.log('🔍 Processing chunks:', chunks.length);
     
-    const embeddings = await generateBatchEmbeddings(chunks);
-    
-    // Return chunks with their embeddings
-    return chunks.map((content, i) => ({
-      content,
-      embedding: embeddings[i]
+    // Generate embeddings for each chunk
+    const embeddings = await Promise.all(chunks.map(async chunk => {
+      const response = await openai.embeddings.create({
+        model: 'text-embedding-ada-002',
+        input: chunk,
+      });
+      return {
+        content: chunk,
+        embedding: response.data[0].embedding
+      };
     }));
 
+    return embeddings;
   } catch (error) {
     console.error('Error generating embeddings:', error);
     throw error;

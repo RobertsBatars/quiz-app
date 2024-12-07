@@ -1,9 +1,6 @@
 import mongoose from 'mongoose'
 import { connectToDatabase } from '@/lib/mongoose'
 
-// Ensure database connection with correct database name
-await connectToDatabase()
-
 export interface IUser extends mongoose.Document {
   email: string
   password: string
@@ -96,6 +93,9 @@ const userSchema = new mongoose.Schema<IUser>(
   {
     timestamps: true,
   }
-)
+);
 
-export default mongoose.models.User || mongoose.model<IUser>('User', userSchema)
+// Connect to database before exporting model
+connectToDatabase().catch(console.error);
+
+export default mongoose.models.User || mongoose.model<IUser>('User', userSchema);

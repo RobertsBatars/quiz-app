@@ -24,20 +24,18 @@ export default function Register() {
     e.preventDefault()
     
     if (password !== confirmPassword) {
-      showNotification({
-        title: 'Error',
-        message: 'Passwords do not match',
-        type: 'error',
-      })
+      showNotification(
+        'error',
+        'Passwords do not match'
+      )
       return
     }
 
     if (password.length < 8) {
-      showNotification({
-        title: 'Error',
-        message: 'Password must be at least 8 characters long',
-        type: 'error',
-      })
+      showNotification(
+        'error', 
+        'Password must be at least 8 characters long'
+      )
       return
     }
 
@@ -47,6 +45,10 @@ export default function Register() {
       router.push('/dashboard')
     } catch (error) {
       console.error('Registration failed:', error)
+      showNotification(
+        'error',
+        error instanceof Error ? error.message : 'Registration failed'
+      )
     } finally {
       setIsLoading(false)
     }
@@ -126,4 +128,3 @@ export default function Register() {
     </div>
   )
 }
-

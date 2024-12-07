@@ -2,46 +2,45 @@ import { mkdir, readFile } from 'fs/promises';
 import path from 'path';
 import OpenAI from 'openai';
 import pdfParse from 'pdf-parse';
-import mammoth from 'mammoth';
+import { PDFDocument } from 'pdf-lib';
 import Document from '@/models/Document';
 import { Types } from 'mongoose';
-import { PDFDocument } from 'pdf-lib';
+import mongoose from 'mongoose';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const documentChunkSchema = new mongoose.Schema({
+  content: { type: String, required: true },
+  embeddings: {
+    type: [Number],
+    validate: {
+      validator: function(v: number[]) {
+        return !v || v.length === 1536;
+      },
+      message: 'Embeddings must be 1536-dimensional vectors'
+    },
+    required: true
+  }
+});
+
+const documentSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
+  fileName: { type: String, required: true },
+  fileType: { type: String, required: true },
+  fileSize: { type: Number, required: true },
+  path: { type: String, required: true },
+  chunks: [documentChunkSchema], // Array of chunks with their embeddings
+  status: { type: String, enum: ['processing', 'completed', 'error'], default: 'processing' },
+  moderationStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
+}, { timestamps: true });
+
 export async function ensureUploadDir(projectId: string): Promise<string> {
   const uploadDir = path.join(process.cwd(), 'uploads', projectId);
   await mkdir(uploadDir, { recursive: true });
   return uploadDir;
-}
-
-export async function extractTextFromFile(file: File): Promise<string> {
-  try {
-    const buffer = await file.arrayBuffer();
-    
-    if (file.type === 'application/pdf') {
-      try {
-        const data = await pdfParse(Buffer.from(buffer));
-        console.log('📄 Extracted text from PDF:', {
-          pages: data.numpages,
-          sampleText: data.text.slice(0, 100)
-        });
-        return data.text;
-      } catch (pdfError) {
-        console.error('PDF parsing error:', pdfError);
-        throw new Error('Failed to parse PDF');
-      }
-    } else if (file.type === 'text/plain') {
-      return Buffer.from(buffer).toString('utf-8');
-    } else {
-      throw new Error(`Unsupported file type: ${file.type}`);
-    }
-  } catch (error) {
-    console.error('Error extracting text:', error);
-    throw error;
-  }
 }
 
 export async function generateEmbeddings(text: string): Promise<number[]> {

@@ -33,73 +33,46 @@ interface SearchIndexDefinition {
 async function createVectorIndex(db: any) {
   const collection = db.collection('documents');
   
-  console.log('🔍 Checking existing indexes...');
+  console.log('🔍 Creating vector search index...');
   
   try {
-    const searchIndexes = await db.command({ 
-      listSearchIndexes: 'documents' 
+    // First, ensure basic index exists
+    await collection.createIndex(
+      { "chunks.embeddings": 1 },
+      { 
+        name: "vector_index_base",
+        background: true 
+      }
+    );
+
+    // Then create vector search index
+    await db.command({
+      createSearchIndexes: 'documents',
+      indexes: [{
+        name: "vector_index",
+        type: "vectorSearch",
+        definition: {
+          fields: [{
+            type: "vector",
+            path: "chunks.embeddings",
+            numDimensions: 1536,
+            similarity: "cosine"
+          },
+          {
+            type: "filter",
+            path: "projectId"
+          }]
+        }
+      }]
     });
-    
-    // Parse indexes from cursor firstBatch
-    const indexes = searchIndexes?.cursor?.firstBatch || [];
-    console.log('📑 Found search indexes:', indexes.length);
 
-    if (indexes.some((i: any) => i.name === 'vector_index')) {
-      console.log('🗑️ Dropping existing vector index...');
-      try {
-        await db.command({
-          dropSearchIndex: 'documents',
-          name: 'vector_index'
-        });
-        console.log('✅ Existing index dropped');
-        // Wait for index deletion
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      } catch (e) {
-        console.log('⚠️ Failed to drop index:', e);
-      }
-    }
-
-    console.log('📝 Creating new vector search index...');
-    try {
-      await db.command({
-        createSearchIndexes: 'documents',
-        indexes: [{
-          name: "vector_index",
-          type: "vectorSearch",
-          definition: {
-            fields: [{
-              type: "vector",
-              path: "chunks.embeddings",
-              numDimensions: EMBEDDING_SIZE,
-              similarity: "euclidean"
-            },
-            {
-              type: "filter",
-              path: "projectId"
-            },
-            {
-              type: "filter",
-              path: "status"
-            },
-            {
-              type: "filter",
-              path: "moderationStatus"
-            }]
-          }
-        }]
-      });
-      console.log('✅ Vector search index created successfully');
-    } catch (e: any) {
-      // Ignore duplicate index error
-      if (e?.code === 68) {
-        console.log('ℹ️ Vector search index already exists');
-        return;
-      }
-      throw e;
-    }
-
+    console.log('✅ Vector search index created successfully');
   } catch (error) {
-    console.error('❌ Failed to manage vector search index:', error);
+    if ((error as any)?.code === 68) {
+      console.log('ℹ️ Vector search index already exists');
+      return;
+    }
+    console.error('❌ Failed to create vector search index:', error);
     throw error;
   }
 }
