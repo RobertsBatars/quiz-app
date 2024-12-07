@@ -1,4 +1,4 @@
-import { MongoClient, CreateIndexesOptions } from 'mongodb';
+import { MongoClient, Document, IndexDescription } from 'mongodb';
 import dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });
@@ -10,18 +10,103 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
 
-interface VectorSearchOptions {
+interface VectorSearchField {
+  type: "vector";
+  path: string;
   numDimensions: number;
   similarity: "euclidean" | "cosine" | "dotProduct";
 }
 
-interface VectorIndexDescription extends IndexDescription {
-  vectorSearchOptions?: VectorSearchOptions;
+interface FilterField {
+  type: "filter";
+  path: string;
+}
+
+interface SearchIndexDefinition {
+  name: string;
+  type: "vectorSearch";
+  definition: {
+    fields: (VectorSearchField | FilterField)[];
+  };
+}
+
+async function createVectorIndex(db: any) {
+  const collection = db.collection('documents');
+  
+  console.log('🔍 Checking existing indexes...');
+  
+  try {
+    const searchIndexes = await db.command({ 
+      listSearchIndexes: 'documents' 
+    });
+    
+    // Parse indexes from cursor firstBatch
+    const indexes = searchIndexes?.cursor?.firstBatch || [];
+    console.log('📑 Found search indexes:', indexes.length);
+
+    if (indexes.some((i: any) => i.name === 'vector_index')) {
+      console.log('🗑️ Dropping existing vector index...');
+      try {
+        await db.command({
+          dropSearchIndex: 'documents',
+          name: 'vector_index'
+        });
+        console.log('✅ Existing index dropped');
+        // Wait for index deletion
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      } catch (e) {
+        console.log('⚠️ Failed to drop index:', e);
+      }
+    }
+
+    console.log('📝 Creating new vector search index...');
+    try {
+      await db.command({
+        createSearchIndexes: 'documents',
+        indexes: [{
+          name: "vector_index",
+          type: "vectorSearch",
+          definition: {
+            fields: [{
+              type: "vector",
+              path: "chunks.embeddings",
+              numDimensions: EMBEDDING_SIZE,
+              similarity: "euclidean"
+            },
+            {
+              type: "filter",
+              path: "projectId"
+            },
+            {
+              type: "filter",
+              path: "status"
+            },
+            {
+              type: "filter",
+              path: "moderationStatus"
+            }]
+          }
+        }]
+      });
+      console.log('✅ Vector search index created successfully');
+    } catch (e: any) {
+      // Ignore duplicate index error
+      if (e?.code === 68) {
+        console.log('ℹ️ Vector search index already exists');
+        return;
+      }
+      throw e;
+    }
+
+  } catch (error) {
+    console.error('❌ Failed to manage vector search index:', error);
+    throw error;
+  }
 }
 
 async function updateSchema() {
   const client = await MongoClient.connect(MONGODB_URI as string);
-  const db = client.db('quiz-app');
+  const db = client.db('quiz-app'); // This is correct
 
   // Create collections if they don't exist
   const collections = ['users', 'documents', 'quizzes', 'responses', 'projects'];
@@ -93,42 +178,14 @@ async function updateSchema() {
     }
   });
 
-  // Drop existing vector index if exists
+  // Create Atlas Vector Search index
   try {
-    await db.collection('documents').dropIndex("vector_index");
-  } catch (e) {
-    // Index might not exist
+    await createVectorIndex(db);
+    console.log('Vector search index created successfully');
+  } catch (error) {
+    console.error('Failed to create vector search index:', error);
+    throw error;
   }
-
-  // Create vector search index with proper typing
-  const vectorIndex = {
-    key: {
-      embeddings: 1,
-      projectId: 1,
-      status: 1,
-      moderationStatus: 1
-    },
-    name: "vector_index",
-    vectorSearchOptions: {
-      numDimensions: EMBEDDING_SIZE,
-      similarity: "euclidean" as const
-    }
-  } as VectorIndexDescription;
-
-  await db.collection('documents').createIndex(
-    vectorIndex.key,
-    {
-      name: vectorIndex.name,
-      background: true,
-      ...vectorIndex.vectorSearchOptions && {
-        vectorSearchOptions: vectorIndex.vectorSearchOptions
-      }
-    } as CreateIndexesOptions & { 
-      vectorSearchOptions?: VectorSearchOptions 
-    }
-  );
-
-  console.log('Vector search index created successfully');
 
   // Update Quizzes collection
   await db.command({

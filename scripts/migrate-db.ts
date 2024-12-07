@@ -119,10 +119,10 @@ async function migrate() {
       console.log(`Collection ${collection}:`, {
         sourceCount,
         targetCount,
-        isTimeseries: targetInfo?.options?.timeseries ? 'yes' : 'no'
+        isTimeseries: (targetInfo as any)?.options?.timeseries ? 'yes' : 'no'
       });
 
-      if (sourceCount !== targetCount || targetInfo?.options?.timeseries) {
+      if (sourceCount !== targetCount || (targetInfo as any)?.options?.timeseries) {
         success = false;
       }
     }

@@ -98,15 +98,15 @@ export async function POST(request: NextRequest) {
       while (queryCount < maxQueries) {
         console.log(`📝 Generating query ${queryCount + 1}/${maxQueries}`)
         const queryCompletion = await openai.beta.chat.completions.parse({
-          model: 'gpt-4o-2024-08-06',
+          model: 'gpt-4o-2024-08-06', // Check if this is the correct model name
           messages: [
             {
               role: 'system',
-              content: 'You are an AI that generates search queries...'
+              content: 'You are an AI that generates focused search queries to find relevant context for quiz generation. Generate queries that will help find specific content.'
             },
             {
               role: 'user',
-              content: `Content: ${content}\nContext: ${contextData.join('\n')}`
+              content: `Generate a search query to find relevant information for a ${quizType} quiz about: ${content}`
             }
           ],
           response_format: QUERY_SCHEMA

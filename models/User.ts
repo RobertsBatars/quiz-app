@@ -1,8 +1,8 @@
 import mongoose from 'mongoose'
-import dbConnect from '@/lib/db'
+import { connectToDatabase } from '@/lib/mongoose'
 
-// Ensure database connection
-dbConnect()
+// Ensure database connection with correct database name
+await connectToDatabase()
 
 export interface IUser extends mongoose.Document {
   email: string

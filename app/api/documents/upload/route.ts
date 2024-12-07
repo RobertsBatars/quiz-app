@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
 import { getServerSession } from 'next-auth';
+import mongoose from 'mongoose';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Document from '@/models/Document';
+import Project from '@/models/Project';
 import { connectToDatabase } from '@/lib/mongoose';
-import { generateEmbeddings } from '@/lib/embeddings'; // Add this import
+import { generateEmbeddings } from '@/lib/embeddings';
+import { extractTextFromFile } from '@/lib/documents';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = [
@@ -59,7 +62,7 @@ export async function POST(request: NextRequest) {
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', projectId);
     const filePath = path.join(uploadDir, fileName);
 
-    // Ensure upload directory exists
+    // Ensure directory exists
     await mkdir(uploadDir, { recursive: true });
 
     // Save file
@@ -67,27 +70,34 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
 
-    // Generate embeddings from file content
+    // Extract text and generate embeddings
     const fileContent = buffer.toString('utf-8');
-    const embeddings = await generateEmbeddings(fileContent);
+    const processedChunks = await generateEmbeddings(fileContent);
 
     // Connect to database
     await connectToDatabase();
 
-    // Create document record with required fields
-    const document = new Document({
+    // Create document record
+    const document = await Document.create({
       userId: session.user.id,
-      projectId,
+      projectId: new mongoose.Types.ObjectId(projectId),
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size,
-      path: filePath, // Required path field
-      embeddings: embeddings, // Required 1536-dim vector
-      status: 'processing',
+      path: filePath,
+      chunks: processedChunks.map(chunk => ({
+        content: chunk.content,
+        embeddings: chunk.embedding
+      })),
+      status: 'completed',
       moderationStatus: 'pending'
     });
 
-    await document.save();
+    // Update project
+    await Project.findByIdAndUpdate(
+      projectId,
+      { $push: { documents: document._id } }
+    );
 
     return NextResponse.json({
       success: true,
@@ -97,7 +107,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({
-      success: false, 
+      success: false,
       error: 'Upload failed',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });

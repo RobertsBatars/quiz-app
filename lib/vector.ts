@@ -19,16 +19,12 @@ export async function vectorSearch(query: string, projectId: string) {
   try {
     await connectToDatabase();
     
+    console.log('🔍 Vector search params:', { query, projectId });
+    
+    const queryVector = await createEmbedding(query);
+    console.log('✅ Generated query embedding');
+
     const pipeline = [
-      {
-        $vectorSearch: {
-          index: "vector_index",
-          path: "embeddings",
-          queryVector: await createEmbedding(query),
-          numCandidates: 100,
-          limit: 5
-        }
-      },
       {
         $match: {
           projectId: new Types.ObjectId(projectId),
@@ -36,15 +32,29 @@ export async function vectorSearch(query: string, projectId: string) {
           moderationStatus: "approved"
         }
       },
+      { $unwind: "$chunks" },
+      {
+        $vectorSearch: {
+          index: "vector_index",
+          path: "chunks.embeddings",
+          queryVector,
+          numCandidates: 100,
+          limit: 5
+        }
+      },
       {
         $project: {
-          content: 1,
+          fileName: 1,
+          chunk: "$chunks.content",
           score: { $meta: "vectorSearchScore" }
         }
       }
     ];
 
-    return await Document.aggregate(pipeline);
+    console.log('📊 Running aggregation pipeline...');
+    const results = await Document.aggregate(pipeline);
+    
+    return results;
   } catch (error) {
     console.error('Vector search error:', error);
     return [];

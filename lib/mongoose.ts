@@ -15,7 +15,7 @@ declare global {
   var mongoose: GlobalMongoose | undefined
 }
 
-const cached: GlobalMongoose = global.mongoose || { conn: null, promise: null }
+const cached = global.mongoose || { conn: null, promise: null }
 
 if (!global.mongoose) {
   global.mongoose = cached
@@ -29,9 +29,10 @@ export async function connectToDatabase() {
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      dbName: 'quiz-app',
       serverApi: {
         version: "1" as "1",
-        strict: true,
+        strict: false, // Change this to false to allow vector search
         deprecationErrors: true,
       }
     }
@@ -41,6 +42,9 @@ export async function connectToDatabase() {
 
   try {
     cached.conn = await cached.promise
+    if (mongoose.connection.db) {
+      console.log('🔌 Connected to database:', mongoose.connection.db.databaseName)
+    }
   } catch (e) {
     cached.promise = null
     throw e

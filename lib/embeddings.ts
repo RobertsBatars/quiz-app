@@ -39,16 +39,22 @@ function chunkText(text: string): string[] {
   return chunks;
 }
 
-export async function generateEmbeddings(input: string | string[]): Promise<EmbeddingVector> {
+export async function generateEmbeddings(input: string | string[]): Promise<Array<{content: string, embedding: EmbeddingVector}>> {
   try {
     const chunks = typeof input === 'string' ? 
       chunkText(input) : 
       input.flatMap(text => chunkText(text));
 
+    console.log('🔍 Processing chunks:', chunks.length);
+    
     const embeddings = await generateBatchEmbeddings(chunks);
     
-    // For document storage, use first chunk's embedding
-    return embeddings[0];
+    // Return chunks with their embeddings
+    return chunks.map((content, i) => ({
+      content,
+      embedding: embeddings[i]
+    }));
+
   } catch (error) {
     console.error('Error generating embeddings:', error);
     throw error;
@@ -57,6 +63,11 @@ export async function generateEmbeddings(input: string | string[]): Promise<Embe
 
 export async function generateBatchEmbeddings(inputs: string[]): Promise<EmbeddingVector[]> {
   try {
+    console.log('🔤 Generating embeddings for chunks:', {
+      count: inputs.length,
+      samples: inputs.map(i => i.slice(0, 50))
+    });
+
     const response = await openai.embeddings.create({
       model: "text-embedding-ada-002",
       input: inputs,
@@ -64,6 +75,11 @@ export async function generateBatchEmbeddings(inputs: string[]): Promise<Embeddi
     });
 
     const embeddings = response.data.map(item => item.embedding);
+    console.log('✅ Generated embeddings:', {
+      count: embeddings.length,
+      dimensions: embeddings[0]?.length,
+      sample: embeddings[0]?.slice(0, 5)
+    });
     
     // Validate embeddings
     if (!embeddings.every(validateEmbedding)) {

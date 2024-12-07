@@ -5,6 +5,7 @@ import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import Document from '@/models/Document';
 import { Types } from 'mongoose';
+import { PDFDocument } from 'pdf-lib';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,23 +17,26 @@ export async function ensureUploadDir(projectId: string): Promise<string> {
   return uploadDir;
 }
 
-export async function extractTextFromFile(filePath: string, fileType: string): Promise<string> {
+export async function extractTextFromFile(file: File): Promise<string> {
   try {
-    if (fileType === 'application/pdf') {
-      const dataBuffer = await readFile(filePath);
-      const pdfData = await pdfParse(dataBuffer);
-      return pdfData.text;
-    } else if (
-      fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      fileType === 'application/msword'
-    ) {
-      const result = await mammoth.extractRawText({ path: filePath });
-      return result.value;
-    } else if (fileType === 'text/plain') {
-      const content = await readFile(filePath, 'utf-8');
-      return content;
+    const buffer = await file.arrayBuffer();
+    
+    if (file.type === 'application/pdf') {
+      try {
+        const data = await pdfParse(Buffer.from(buffer));
+        console.log('📄 Extracted text from PDF:', {
+          pages: data.numpages,
+          sampleText: data.text.slice(0, 100)
+        });
+        return data.text;
+      } catch (pdfError) {
+        console.error('PDF parsing error:', pdfError);
+        throw new Error('Failed to parse PDF');
+      }
+    } else if (file.type === 'text/plain') {
+      return Buffer.from(buffer).toString('utf-8');
     } else {
-      throw new Error('Unsupported file type');
+      throw new Error(`Unsupported file type: ${file.type}`);
     }
   } catch (error) {
     console.error('Error extracting text:', error);
