@@ -77,7 +77,7 @@ const QUIZ_SCHEMAS = {
 
 export async function POST(request: NextRequest) {
   console.log('🚀 Starting quiz generation...')
-  const { content, quizType, projectId, customInstructions, questionCount = 5 } = await request.json()
+  const { content, quizType, projectId, customInstructions, questionCount = 5, title } = await request.json()
   console.log('📦 Request data:', { quizType, projectId, questionCount })
 
   try {
@@ -87,47 +87,44 @@ export async function POST(request: NextRequest) {
     const existingDoc = await Document.findOne({ projectId }).exec()
     console.log('📄 Found documents:', !!existingDoc)
 
-    let contextData: string[] = []
     let queryResponses: any[] = []
+    let documentContexts: Array<{ content: string, fileName: string }> = []
 
     if (existingDoc) {
       console.log('🔄 Gathering context...')
       let queryCount = 0
-      const maxQueries = 3
+      const maxQueries = 5
 
       while (queryCount < maxQueries) {
         console.log(`📝 Generating query ${queryCount + 1}/${maxQueries}`)
         const queryCompletion = await openai.beta.chat.completions.parse({
-          model: 'gpt-4o-2024-08-06', // Check if this is the correct model name
+          model: 'gpt-4o-mini',
           messages: [
             {
               role: 'system',
-              content: 'You are an AI that generates focused search queries to find relevant context for quiz generation. Generate queries that will help find specific content.'
+              content: 'You are an AI that generates focused search queries to find relevant context for quiz generation.'
             },
             {
               role: 'user',
-              content: `Generate a search query to find relevant information for a ${quizType} quiz about: ${content}`
+              content: `Generate a search query for a ${quizType} quiz about: ${title}`
             }
           ],
           response_format: QUERY_SCHEMA
         })
 
-        console.log('🤖 OpenAI response:', {
-          status: queryCompletion.choices[0].finish_reason,
-          refusal: queryCompletion.choices[0].message.refusal
-        })
-
         queryResponses.push(queryCompletion.choices[0].message.parsed)
-        console.log('✅ Query response:', queryCompletion.choices[0].message.parsed)
-
+        
         const searchResults = await vectorSearch(
           queryCompletion.choices[0].message?.parsed?.query ?? '', 
           projectId
         )
-        console.log('🔍 Search results:', searchResults.length)
 
-        contextData.push(...searchResults.map(r => r.content))
-        if (queryCompletion.choices[0].message?.parsed?.stopQuery || contextData.length >= 10) {
+        documentContexts.push(...searchResults.map(r => ({
+          content: r.content,
+          fileName: r.fileName
+        })))
+
+        if (queryCompletion.choices[0].message?.parsed?.stopQuery || documentContexts.length >= 10) {
           break
         }
         queryCount++
@@ -136,7 +133,7 @@ export async function POST(request: NextRequest) {
 
     console.log('📚 Generating quiz...')
     const quizCompletion = await openai.beta.chat.completions.parse({
-      model: 'gpt-4o-2024-08-06',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -144,40 +141,23 @@ export async function POST(request: NextRequest) {
         },
         {
           role: 'user',
-          content: contextData.length > 0 
-            ? `Content: ${content}\nContext: ${contextData.join('\n')}`
-            : `Content: ${content}`
+          content: documentContexts.length > 0 
+            ? `Title: ${title}\nContent: ${documentContexts.map(d => d.content).join('\n')}\nSource Files: ${documentContexts.map(d => d.fileName).join(', ')}`
+            : `Title: ${title}`
         }
       ],
       response_format: QUIZ_SCHEMAS[quizType as QuizType]
-    })
-
-    console.log('🤖 Quiz generation response:', {
-      status: quizCompletion.choices[0].finish_reason,
-      refusal: quizCompletion.choices[0].message.refusal
     })
 
     const quiz = quizCompletion.choices[0].message.parsed
     if (!quiz) {
       throw new Error('Failed to generate quiz - no data received')
     }
-    console.log('✅ Generated quiz structure:', {
-      type: quizType,
-      questionCount: 'questions' in quiz ? quiz.questions.length 
-                    : 'cards' in quiz ? quiz.cards.length 
-                    : 'sections' in quiz ? quiz.sections.length 
-                    : 0
-    })
 
     return NextResponse.json({ success: true, quiz })
 
   } catch (error) {
     console.error('❌ Quiz generation failed:', error)
-    if (error instanceof Error) {
-      console.error('- Name:', error.name)
-      console.error('- Message:', error.message)
-      console.error('- Stack:', error.stack)
-    }
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Quiz generation failed' },
       { status: 500 }

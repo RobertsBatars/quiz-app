@@ -18,12 +18,12 @@ export default function CreateQuiz({ params }: { params: { id: string } }) {
   const [customInstructions, setCustomInstructions] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
+  const [quizTitle, setQuizTitle] = useState<string>('')
 
   const handleCreateQuiz = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
-
     try {
       // First generate quiz content
       const generateResponse = await fetch('/api/generate-quiz', {
@@ -31,8 +31,9 @@ export default function CreateQuiz({ params }: { params: { id: string } }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: params.id,
+          title: quizTitle, // Make sure quizTitle is passed
           quizType,
-          questionAmount,
+          questionCount: questionAmount,
           customInstructions,
         }),
       })
@@ -49,7 +50,7 @@ export default function CreateQuiz({ params }: { params: { id: string } }) {
         body: JSON.stringify({
           projectId: params.id,
           quizData: {
-            title: `${quizType} Quiz`,
+            title: quizTitle, // Use the user-provided title instead of generated one
             type: quizType,
             questions: generatedData.quiz.questions,
             status: 'draft'
@@ -85,6 +86,17 @@ export default function CreateQuiz({ params }: { params: { id: string } }) {
         </CardHeader>
         <form onSubmit={handleCreateQuiz}>
           <CardContent className="space-y-4">
+          <div className="space-y-2">
+              <Label htmlFor="quiz-title">Quiz Title</Label>
+              <Input
+                id="quiz-title"
+                type="text"
+                required
+                placeholder="Enter quiz title"
+                value={quizTitle}
+                onChange={(e) => setQuizTitle(e.target.value)}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="quiz-type">Quiz Type</Label>
               <Select value={quizType} onValueChange={setQuizType}>

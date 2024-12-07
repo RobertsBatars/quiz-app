@@ -7,7 +7,11 @@ dbConnect();
 // Define question schema as a separate schema
 const questionSchema = new mongoose.Schema({
   question: { type: String, required: true },
-  type: { type: String, required: true },
+  type: { 
+    type: String, 
+    required: true,
+    enum: ['multiple-choice', 'open-ended', 'flash-cards', 'oral-exam']
+  },
   options: [String],
   correctAnswer: String,
   explanation: String,
