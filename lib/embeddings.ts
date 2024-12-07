@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { Types } from 'mongoose';
+import Embedding from '@/models/Embedding';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -39,25 +40,29 @@ function chunkText(text: string): string[] {
   return chunks;
 }
 
-export async function generateEmbeddings(text: string): Promise<Array<{content: string, embedding: number[]}>> {
+export async function generateEmbeddings(text: string, documentId: string, projectId: string): Promise<void> {
   try {
     // Split text into chunks
     const chunks = chunkText(text);
     console.log('🔍 Processing chunks:', chunks.length);
     
-    // Generate embeddings for each chunk
-    const embeddings = await Promise.all(chunks.map(async chunk => {
+    // Generate and store embeddings for each chunk
+    await Promise.all(chunks.map(async (chunk, index) => {
       const response = await openai.embeddings.create({
         model: 'text-embedding-ada-002',
         input: chunk,
       });
-      return {
+
+      await Embedding.create({
+        documentId: new Types.ObjectId(documentId),
+        projectId: new Types.ObjectId(projectId),
         content: chunk,
-        embedding: response.data[0].embedding
-      };
+        embedding: response.data[0].embedding,
+        chunkIndex: index
+      });
     }));
 
-    return embeddings;
+    console.log('✅ Created embeddings for document:', documentId);
   } catch (error) {
     console.error('Error generating embeddings:', error);
     throw error;

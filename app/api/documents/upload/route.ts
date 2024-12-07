@@ -54,6 +54,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate MongoDB ID
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return NextResponse.json(
+        { error: 'Invalid project ID' },
+        { status: 400 }
+      );
+    }
+
     // Validate file
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json({ 
@@ -137,58 +145,62 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Save file
-    const fileName = `${Date.now()}-${file.name}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', projectId);
-    const filePath = path.join(uploadDir, fileName);
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(filePath, buffer);
-
-    // Generate embeddings and save document
-    await connectToDatabase();
-    const embeddings = await generateEmbeddings(fileContent);
-
-    // After file content extraction and embeddings generation
     try {
-      if (!mongoose.Types.ObjectId.isValid(projectId)) {
-        return NextResponse.json({
-          success: false,
-          error: 'Invalid project ID format'
-        }, { status: 400 });
-      }
+      // Save file
+      const fileName = `${Date.now()}-${file.name}`;
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', projectId);
+      const filePath = path.join(uploadDir, fileName);
+      await mkdir(uploadDir, { recursive: true });
+      await writeFile(filePath, buffer);
 
-      // Generate embeddings and save document
+      // Connect to database first
       await connectToDatabase();
-      
-      // After file content extraction
-      const chunks = await generateEmbeddings(fileContent);
 
-      // Create document with chunks
-      const document = await Document.create({
-        userId: session.user.id,
-        projectId: new mongoose.Types.ObjectId(projectId),
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
-        path: filePath,
-        chunks: chunks.map(chunk => ({
-          content: chunk.content,
-          embeddings: chunk.embedding
-        })),
-        status: 'completed',
-        moderationStatus: 'pending'
-      });
+      // Start MongoDB session for transaction
+      const mongoSession = await mongoose.startSession();
+      mongoSession.startTransaction();
 
-      // Update project with new document
-      await Project.findByIdAndUpdate(
-        projectId,
-        { $push: { documents: document._id } }
-      );
+      try {
+        // Create document record
+        const document = await Document.create([{
+          userId: session.user.id,
+          projectId: new mongoose.Types.ObjectId(projectId),
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          path: filePath,
+          status: 'processing', // Set initial status to processing
+          moderationStatus: 'pending'
+        }], { session: mongoSession });
 
-      return NextResponse.json({
-        success: true,
-        documentId: document._id
-      });
+        // Generate and store embeddings
+        await generateEmbeddings(fileContent, document[0]._id.toString(), projectId);
+
+        // Update document status to completed
+        await Document.findByIdAndUpdate(
+          document[0]._id,
+          { status: 'completed' },
+          { session: mongoSession }
+        );
+
+        await mongoSession.commitTransaction();
+
+        console.log('✅ Document and embeddings created:', {
+          documentId: document[0]._id,
+          fileName: document[0].fileName
+        });
+
+        return NextResponse.json({
+          success: true,
+          documentId: document[0]._id
+        });
+
+      } catch (error) {
+        await mongoSession.abortTransaction();
+        throw error;
+      } finally {
+        await mongoSession.endSession();
+      }
 
     } catch (error) {
       console.error('Upload error:', error);

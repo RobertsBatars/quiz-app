@@ -31,14 +31,14 @@ interface SearchIndexDefinition {
 }
 
 async function createVectorIndex(db: any) {
-  const collection = db.collection('documents');
+  const collection = db.collection('embeddings');
   
   console.log('🔍 Creating vector search index...');
   
   try {
     // First, ensure basic index exists
     await collection.createIndex(
-      { "chunks.embeddings": 1 },
+      { embedding: 1 },
       { 
         name: "vector_index_base",
         background: true 
@@ -47,15 +47,15 @@ async function createVectorIndex(db: any) {
 
     // Then create vector search index
     await db.command({
-      createSearchIndexes: 'documents',
+      createSearchIndexes: 'embeddings',
       indexes: [{
         name: "vector_index",
         type: "vectorSearch",
         definition: {
           fields: [{
             type: "vector",
-            path: "chunks.embeddings",
-            numDimensions: 1536,
+            path: "embedding",
+            numDimensions: EMBEDDING_SIZE,
             similarity: "cosine"
           },
           {
@@ -126,7 +126,7 @@ async function updateSchema() {
     validator: {
       $jsonSchema: {
         bsonType: 'object',
-        required: ['userId', 'projectId', 'fileName', 'fileType', 'status', 'embeddings'],
+        required: ['userId', 'projectId', 'fileName', 'fileType', 'status'],
         properties: {
           userId: { bsonType: 'objectId' },
           projectId: { bsonType: 'objectId' },
@@ -142,10 +142,7 @@ async function updateSchema() {
             items: { bsonType: 'double' }
           },
           status: { enum: ['processing', 'completed', 'error'] },
-          moderationStatus: { enum: ['pending', 'approved', 'rejected'] },
-          moderationReason: { bsonType: 'string' },
-          createdAt: { bsonType: 'date' },
-          updatedAt: { bsonType: 'date' }
+          moderationStatus: { enum: ['pending', 'approved', 'rejected'] }
         }
       }
     }

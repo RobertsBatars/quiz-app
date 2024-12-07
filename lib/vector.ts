@@ -2,6 +2,7 @@ import { connectToDatabase } from '@/lib/mongoose';
 import { Types } from 'mongoose';
 import OpenAI from 'openai';
 import Document from '@/models/Document';
+import Embedding from '@/models/Embedding';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -18,43 +19,34 @@ export async function createEmbedding(text: string) {
 export async function vectorSearch(query: string, projectId: string) {
   try {
     await connectToDatabase();
-    
-    console.log('🔍 Vector search params:', { query, projectId });
-    
+
     const queryVector = await createEmbedding(query);
-    console.log('✅ Generated query embedding');
 
     const pipeline = [
       {
-        $match: {
-          projectId: new Types.ObjectId(projectId),
-          status: "completed",
-          moderationStatus: "approved"
-        }
-      },
-      { $unwind: "$chunks" },
-      {
         $vectorSearch: {
           index: "vector_index",
-          path: "chunks.embeddings",
+          path: "embedding",
           queryVector,
           numCandidates: 100,
-          limit: 5
+          limit: 5,
+          filter: {
+            projectId: new Types.ObjectId(projectId)
+          }
         }
       },
       {
         $project: {
-          fileName: 1,
-          chunk: "$chunks.content",
-          score: { $meta: "vectorSearchScore" }
+          content: 1,
+          score: { $meta: "vectorSearchScore" },
+          documentId: 1
         }
       }
     ];
 
-    console.log('📊 Running aggregation pipeline...');
-    const results = await Document.aggregate(pipeline);
-    
+    const results = await Embedding.aggregate(pipeline);
     return results;
+
   } catch (error) {
     console.error('Vector search error:', error);
     return [];
