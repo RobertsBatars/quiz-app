@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import jsPDF from 'jspdf'
+import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 interface User {
@@ -55,63 +55,56 @@ export default function AdminDashboard() {
   const [analytics, setAnalytics] = useState<Analytics[]>([])
   const [overall, setOverall] = useState<OverallStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user || user.role !== 'admin') {
-        setLoading(false)
-        return
-      }
-
-      try {
-        const [usersRes, filesRes, analyticsRes] = await Promise.all([
-          fetch('/api/admin/users', {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include'
-          }),
-          fetch('/api/admin/files', {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include'
-          }),
-          fetch('/api/admin/analytics', {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            credentials: 'include'
-          })
-        ])
-
-        if (!usersRes.ok || !filesRes.ok || !analyticsRes.ok) {
-          throw new Error('Failed to fetch data')
-        }
-
-        const usersData = await usersRes.json()
-        const filesData = await filesRes.json()
-        const analyticsData = await analyticsRes.json()
-
-        setUsers(usersData.users)
-        setFiles(filesData.files)
-        setAnalytics(analyticsData.analytics)
-        setOverall(analyticsData.overall)
-        setLoading(false)
-      } catch (error) {
-        console.error('Failed to fetch admin data:', error)
-        setLoading(false)
-      }
+    if (!user) {
+      router.push('/login')
+      return
+    }
+    
+    if (user.role !== 'admin') {
+      router.push('/dashboard')
+      return
     }
 
     fetchData()
-  }, [user])
-
-  useEffect(() => {
-    if (!user || user.role !== 'admin') {
-      router.push('/login')
-    }
   }, [user, router])
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      
+      // Fetch analytics data
+      const analyticsRes = await fetch('/api/admin/analytics')
+      if (!analyticsRes.ok) {
+        throw new Error(`Analytics fetch failed: ${analyticsRes.status}`)
+      }
+      const analyticsData = await analyticsRes.json()
+      setAnalytics(analyticsData.analytics)
+      setOverall(analyticsData.overall)
+
+      // Fetch users and files data
+      const [usersRes, filesRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/admin/files')
+      ])
+
+      const [usersData, filesData] = await Promise.all([
+        usersRes.json(),
+        filesRes.json()
+      ])
+
+      setUsers(usersData.users)
+      setFiles(filesData.files)
+      setError('')
+    } catch (error) {
+      console.error('Failed to fetch data:', error)
+      setError('Failed to load dashboard data')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleUserAction = async (userId: string, action: 'ban' | 'unban' | 'delete') => {
     try {
@@ -200,7 +193,11 @@ export default function AdminDashboard() {
         file.name,
         file.uploadedBy,
         `${(file.size / 1024 / 1024).toFixed(2)}MB`,
-        new Date(file.uploadDate).toLocaleDateString(),
+        new Date(file.uploadDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }),
         file.moderationStatus
       ]),
       startY: finalY2 + 10
@@ -225,199 +222,256 @@ export default function AdminDashboard() {
     doc.save("analytics_report.pdf")
   }
 
+  const formattedAnalytics = analytics.map(item => ({
+    name: item.name, // Month name
+    users: Number(item.users),
+    quizzes: Number(item.quizzes), 
+    responses: Number(item.responses),
+    averageScore: Number(item.averageScore)
+  }))
+
   if (!user || user.role !== 'admin') {
     return null
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-8">
-        <h1 className="text-3xl font-bold mb-6">Loading...</h1>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-8">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-      <div className="mb-6">
-        <Button onClick={() => setActiveTab('users')} variant={activeTab === 'users' ? 'default' : 'outline'} className="mr-2">Users</Button>
-        <Button onClick={() => setActiveTab('files')} variant={activeTab === 'files' ? 'default' : 'outline'} className="mr-2">Files</Button>
-        <Button onClick={() => setActiveTab('analytics')} variant={activeTab === 'analytics' ? 'default' : 'outline'}>Analytics</Button>
-      </div>
-      {activeTab === 'users' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>View and manage user accounts</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Quizzes Taken</TableHead>
-                  <TableHead>Average Score</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.status}</TableCell>
-                    <TableCell>{user.quizzesTaken}</TableCell>
-                    <TableCell>{user.averageScore}%</TableCell>
-                    <TableCell className="space-x-2">
-                      {user.status === 'active' ? (
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          onClick={() => handleUserAction(user.id, 'ban')}
-                        >
-                          Ban
-                        </Button>
-                      ) : (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleUserAction(user.id, 'unban')}
-                        >
-                          Unban
-                        </Button>
-                      )}
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        onClick={() => handleUserAction(user.id, 'delete')}
-                      >
-                        Delete
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-      {activeTab === 'files' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>File Management</CardTitle>
-            <CardDescription>View and manage uploaded files</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>File Name</TableHead>
-                  <TableHead>Uploaded By</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Upload Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {files.map((file) => (
-                  <TableRow key={file.id}>
-                    <TableCell>{file.name}</TableCell>
-                    <TableCell>{file.uploadedBy}</TableCell>
-                    <TableCell>{(file.size / 1024 / 1024).toFixed(2)}MB</TableCell>
-                    <TableCell>{new Date(file.uploadDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{file.moderationStatus}</TableCell>
-                    <TableCell className="space-x-2">
-                      {file.moderationStatus === 'pending' && (
-                        <>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleFileAction(file.id, 'approve')}
-                          >
-                            Approve
-                          </Button>
+    <div className="container mx-auto p-6">
+      {loading ? (
+        <div className="flex justify-center items-center min-h-[400px]">
+          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent" />
+        </div>
+      ) : error ? (
+        <div className="text-red-500 text-center p-4">{error}</div>
+      ) : (
+        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-8">
+          <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+          
+          <div className="mb-6">
+            <Button 
+              onClick={() => setActiveTab('users')} 
+              variant={activeTab === 'users' ? 'default' : 'outline'} 
+              className="mr-2"
+            >
+              Users
+            </Button>
+            <Button 
+              onClick={() => setActiveTab('files')} 
+              variant={activeTab === 'files' ? 'default' : 'outline'} 
+              className="mr-2"
+            >
+              Files
+            </Button>
+            <Button 
+              onClick={() => setActiveTab('analytics')} 
+              variant={activeTab === 'analytics' ? 'default' : 'outline'}
+            >
+              Analytics
+            </Button>
+          </div>
+
+          {activeTab === 'users' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>View and manage user accounts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Quizzes Taken</TableHead>
+                      <TableHead>Average Score</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>{user.name}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.status}</TableCell>
+                        <TableCell>{user.quizzesTaken}</TableCell>
+                        <TableCell>{user.averageScore}%</TableCell>
+                        <TableCell className="space-x-2">
+                          {user.status === 'active' ? (
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => handleUserAction(user.id, 'ban')}
+                            >
+                              Ban
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleUserAction(user.id, 'unban')}
+                            >
+                              Unban
+                            </Button>
+                          )}
                           <Button 
                             variant="destructive" 
                             size="sm"
-                            onClick={() => handleFileAction(file.id, 'reject')}
+                            onClick={() => handleUserAction(user.id, 'delete')}
                           >
-                            Reject
+                            Delete
                           </Button>
-                        </>
-                      )}
-                      <Button 
-                        variant="destructive" 
-                        size="sm"
-                        onClick={() => handleFileAction(file.id, 'delete')}
-                      >
-                        Delete
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-      {activeTab === 'analytics' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Analytics</CardTitle>
-            <CardDescription>View platform usage and performance metrics</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {overall && (
-              <div className="grid grid-cols-4 gap-4 mb-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Total Users</CardTitle>
-                    <CardDescription>{overall.totalUsers}</CardDescription>
-                  </CardHeader>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Total Quizzes</CardTitle>
-                    <CardDescription>{overall.totalQuizzes}</CardDescription>
-                  </CardHeader>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Total Files</CardTitle>
-                    <CardDescription>{overall.totalFiles}</CardDescription>
-                  </CardHeader>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Average Score</CardTitle>
-                    <CardDescription>{overall.averageScore}%</CardDescription>
-                  </CardHeader>
-                </Card>
-              </div>
-            )}
-            <div className="h-[400px] mb-6">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-                  <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-                  <Tooltip />
-                  <Legend />
-                  <Bar yAxisId="left" dataKey="users" fill="#8884d8" name="New Users" />
-                  <Bar yAxisId="left" dataKey="quizzes" fill="#82ca9d" name="New Quizzes" />
-                  <Bar yAxisId="left" dataKey="responses" fill="#ffc658" name="Quiz Responses" />
-                  <Bar yAxisId="right" dataKey="averageScore" fill="#ff8042" name="Average Score" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <Button onClick={downloadPDF}>Download Analytics PDF</Button>
-          </CardContent>
-        </Card>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+          {activeTab === 'files' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>File Management</CardTitle>
+                <CardDescription>View and manage uploaded files</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>File Name</TableHead>
+                      <TableHead>Uploaded By</TableHead>
+                      <TableHead>Size</TableHead>
+                      <TableHead>Upload Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {files.map((file) => (
+                      <TableRow key={file.id}>
+                        <TableCell>{file.name}</TableCell>
+                        <TableCell>{file.uploadedBy}</TableCell>
+                        <TableCell>{(file.size / 1024 / 1024).toFixed(2)}MB</TableCell>
+                        <TableCell>
+                          {new Date(file.uploadDate).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </TableCell>
+                        <TableCell>{file.moderationStatus}</TableCell>
+                        <TableCell className="space-x-2">
+                          {file.moderationStatus === 'pending' && (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleFileAction(file.id, 'approve')}
+                              >
+                                Approve
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                size="sm"
+                                onClick={() => handleFileAction(file.id, 'reject')}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleFileAction(file.id, 'delete')}
+                          >
+                            Delete
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+          {activeTab === 'analytics' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Analytics</CardTitle>
+                <CardDescription>View platform usage and performance metrics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex justify-center items-center h-[400px]">
+                    <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent" />
+                  </div>
+                ) : analytics && analytics.length > 0 ? (
+                  <>
+                    {overall && (
+                      <div className="grid grid-cols-4 gap-4 mb-6">
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{overall.totalUsers}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">Total Quizzes</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{overall.totalQuizzes}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">Total Files</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{overall.totalFiles}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium">Average Score</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-2xl font-bold">{overall.averageScore}%</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                    
+                    <div className="h-[400px] w-full mb-6">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analytics}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="name" />
+                          <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
+                          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
+                          <Tooltip />
+                          <Legend />
+                          <Bar yAxisId="left" dataKey="users" fill="#8884d8" name="New Users" />
+                          <Bar yAxisId="left" dataKey="quizzes" fill="#82ca9d" name="New Quizzes" />
+                          <Bar yAxisId="left" dataKey="responses" fill="#ffc658" name="Quiz Responses" />
+                          <Bar yAxisId="right" dataKey="averageScore" fill="#ff8042" name="Average Score" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="mt-4">
+                      <Button onClick={downloadPDF}>Download Analytics PDF</Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center p-4">No analytics data available</div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   )

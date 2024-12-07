@@ -5,127 +5,163 @@ import User from '@/models/User'
 import Quiz from '@/models/Quiz'
 import Response from '@/models/Response'
 import Document from '@/models/Document'
-import connectDB from '@/lib/mongodb'
+import { connectToDatabase } from '@/lib/mongoose'
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
+    console.log('Session:', session)
+
     if (!session || session.user.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await connectDB
+    await connectToDatabase()
+    console.log('DB connected')
 
     // Get monthly analytics for the last 6 months
     const now = new Date()
-    const sixMonthsAgo = new Date(now.setMonth(now.getMonth() - 6))
-
-    const monthlyStats = await Response.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: sixMonthsAgo }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          averageScore: { $avg: '$totalScore' },
-          totalResponses: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { '_id.year': 1, '_id.month': 1 }
-      }
-    ])
-
-    // Get user registrations by month
-    const userStats = await User.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: sixMonthsAgo }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          newUsers: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { '_id.year': 1, '_id.month': 1 }
-      }
-    ])
-
-    // Get quiz creation stats by month
-    const quizStats = await Quiz.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: sixMonthsAgo }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' }
-          },
-          newQuizzes: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { '_id.year': 1, '_id.month': 1 }
-      }
-    ])
-
-    // Get overall statistics
-    const totalUsers = await User.countDocuments()
-    const totalQuizzes = await Quiz.countDocuments()
-    const totalFiles = await Document.countDocuments()
-    const averageScore = await Response.aggregate([
-      {
-        $group: {
-          _id: null,
-          average: { $avg: '$totalScore' }
-        }
-      }
-    ])
-
-    // Combine monthly stats
+    const currentMonth = now.getMonth() // 0-11
+    const currentYear = now.getFullYear()
+    
+    // Initialize array for the last 6 months
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const analytics = monthlyStats.map(stat => {
-      const userStat = userStats.find(u => 
-        u._id.year === stat._id.year && u._id.month === stat._id.month
-      )
-      const quizStat = quizStats.find(q => 
-        q._id.year === stat._id.year && q._id.month === stat._id.month
-      )
+    const analytics = []
 
-      return {
-        name: months[stat._id.month - 1],
-        users: userStat?.newUsers || 0,
-        quizzes: quizStat?.newQuizzes || 0,
-        averageScore: Math.round(stat.averageScore || 0),
-        responses: stat.totalResponses
+    // Calculate correct date range
+    for (let i = 5; i >= 0; i--) {
+      let monthIndex = currentMonth - i
+      let year = currentYear
+      
+      if (monthIndex < 0) {
+        monthIndex += 12
+        year -= 1
+      }
+      
+      analytics.push({
+        name: months[monthIndex],
+        year: year,
+        month: monthIndex + 1, // MongoDB months are 1-12
+        users: 0,
+        quizzes: 0,
+        responses: 0,
+        averageScore: 0
+      })
+    }
+
+    const sixMonthsAgo = new Date(now)
+    sixMonthsAgo.setMonth(now.getMonth() - 5) // -5 to include current month
+    sixMonthsAgo.setDate(1)
+    sixMonthsAgo.setHours(0, 0, 0, 0)
+
+    // Rest of the aggregation queries...
+    const [monthlyStats, userStats, quizStats, totalUsers, totalQuizzes, totalFiles, averageScore] = await Promise.all([
+      Response.aggregate([
+        {
+          $match: { createdAt: { $gte: sixMonthsAgo } }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
+            },
+            averageScore: { $avg: '$totalScore' },
+            totalResponses: { $sum: 1 }
+          }
+        }
+      ]),
+      User.aggregate([
+        {
+          $match: { createdAt: { $gte: sixMonthsAgo } }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
+            },
+            newUsers: { $sum: 1 }
+          }
+        }
+      ]),
+      Quiz.aggregate([
+        {
+          $match: { createdAt: { $gte: sixMonthsAgo } }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
+            },
+            newQuizzes: { $sum: 1 }
+          }
+        }
+      ]),
+      User.countDocuments(),
+      Quiz.countDocuments(),
+      Document.countDocuments(),
+      Response.aggregate([
+        {
+          $group: {
+            _id: null,
+            average: { $avg: '$totalScore' }
+          }
+        }
+      ])
+    ])
+
+    // Update the data merging logic
+    monthlyStats.forEach(stat => {
+      const analyticsIndex = analytics.findIndex(a => 
+        a.year === stat._id.year && a.month === stat._id.month
+      )
+      if (analyticsIndex !== -1) {
+        analytics[analyticsIndex].responses = stat.totalResponses
+        analytics[analyticsIndex].averageScore = Math.round(stat.averageScore || 0)
       }
     })
 
-    return NextResponse.json({
-      analytics,
-      overall: {
-        totalUsers,
-        totalQuizzes,
-        totalFiles,
-        averageScore: Math.round(averageScore[0]?.average || 0)
+    userStats.forEach(stat => {
+      const analyticsIndex = analytics.findIndex(a => 
+        a.year === stat._id.year && a.month === stat._id.month
+      )
+      if (analyticsIndex !== -1) {
+        analytics[analyticsIndex].users = stat.newUsers
       }
     })
+
+    quizStats.forEach(stat => {
+      const analyticsIndex = analytics.findIndex(a => 
+        a.year === stat._id.year && a.month === stat._id.month
+      )
+      if (analyticsIndex !== -1) {
+        analytics[analyticsIndex].quizzes = stat.newQuizzes
+      }
+    })
+
+    const overall = {
+      totalUsers,
+      totalQuizzes,
+      totalFiles,
+      averageScore: Math.round(averageScore[0]?.average || 0)
+    }
+
+    // Clean up the analytics data before sending
+    const cleanAnalytics = analytics.map(({ name, users, quizzes, responses, averageScore }) => ({
+      name,
+      users,
+      quizzes,
+      responses,
+      averageScore
+    }))
+
+    console.log('Analytics data:', { analytics: cleanAnalytics, overall })
+    return NextResponse.json({ analytics: cleanAnalytics, overall })
+
   } catch (error) {
-    console.error('Failed to fetch analytics:', error)
+    console.error('Analytics error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch analytics' },
       { status: 500 }
