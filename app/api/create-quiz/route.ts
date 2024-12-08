@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       projectId,
       title: quizData.title,
       type: quizData.type,
-      questions: quizData.questions.map(q => ({
+      questions: quizData.questions.map((q: QuizQuestion) => ({
         ...q,
         type: quizData.type
       })),
