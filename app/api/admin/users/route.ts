@@ -53,54 +53,95 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== 'admin') {
+    if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { userId, action } = await request.json()
-    if (!userId || !action) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
+    const body = await request.json()
+    const { userId, action, name, email } = body
 
     await connectDB()
 
-    const user = await User.findById(userId)
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
-    }
+    // Handle admin actions
+    if (session.user.role === 'admin' && userId && action) {
+      const targetUser = await User.findById(userId)
+      if (!targetUser) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      }
 
-    if (user.role === 'admin') {
-      return NextResponse.json(
-        { error: 'Cannot modify admin users' },
-        { status: 403 }
-      )
-    }
-
-    switch (action) {
-      case 'ban':
-        user.status = 'banned'
-        break
-      case 'unban':
-        user.status = 'active'
-        break
-      case 'delete':
-        await User.findByIdAndDelete(userId)
-        return NextResponse.json({ success: true })
-      default:
+      if (targetUser.role === 'admin') {
         return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
+          { error: 'Cannot modify admin users' },
+          { status: 403 }
         )
+      }
+
+      switch (action) {
+        case 'ban':
+          targetUser.status = 'banned'
+          break
+        case 'unban':
+          targetUser.status = 'active'
+          break
+        case 'delete':
+          await User.findByIdAndDelete(userId)
+          return NextResponse.json({ success: true })
+        default:
+          return NextResponse.json(
+            { error: 'Invalid action' },
+            { status: 400 }
+          )
+      }
+
+      await targetUser.save()
+      return NextResponse.json({ success: true })
+    }
+    
+    // Handle profile updates
+    if (name || email) {
+      // Verify email uniqueness if email is being updated
+      if (email && email !== session.user.email) {
+        const existingUser = await User.findOne({ email })
+        if (existingUser) {
+          return NextResponse.json(
+            { error: 'Email already in use' },
+            { status: 400 }
+          )
+        }
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(
+        session.user.id,
+        { 
+          ...(name && { name }),
+          ...(email && { email })
+        },
+        { new: true }
+      )
+
+      if (!updatedUser) {
+        return NextResponse.json(
+          { error: 'User not found' },
+          { status: 404 }
+        )
+      }
+
+      return NextResponse.json({ 
+        success: true,
+        user: {
+          id: updatedUser._id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role
+        }
+      })
     }
 
-    await user.save()
-    return NextResponse.json({ success: true })
+    return NextResponse.json(
+      { error: 'Invalid request' },
+      { status: 400 }
+    )
+
   } catch (error) {
     console.error('Failed to update user:', error)
     return NextResponse.json(

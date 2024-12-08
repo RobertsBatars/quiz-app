@@ -105,9 +105,11 @@ export default function CreateQuiz({ params }: { params: { id: string } }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
+                  {/* Temporarily hidden:
                   <SelectItem value="open-ended">Open Ended</SelectItem>
                   <SelectItem value="flash-cards">Flash Cards</SelectItem>
                   <SelectItem value="oral-exam">Oral Exam</SelectItem>
+                  */}
                 </SelectContent>
               </Select>
             </div>
