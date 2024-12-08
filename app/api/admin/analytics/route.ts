@@ -7,6 +7,16 @@ import Response from '@/models/Response'
 import Document from '@/models/Document'
 import { connectToDatabase } from '@/lib/mongoose'
 
+interface MonthlyAnalytics {
+  name: string;
+  year: number;
+  month: number;
+  users: number;
+  quizzes: number;
+  responses: number;
+  averageScore: number;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -26,7 +36,7 @@ export async function GET(request: NextRequest) {
     
     // Initialize array for the last 6 months
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    const analytics = []
+    const analytics: MonthlyAnalytics[] = []
 
     // Calculate correct date range
     for (let i = 5; i >= 0; i--) {
