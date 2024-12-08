@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import connectDB from '@/lib/db' // Fix import
-import Quiz from '@/models/Quiz'
-import Project from '@/models/Project'
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import connectDB from '@/lib/db';
+import Quiz from '@/models/Quiz';
+import Project from '@/models/Project';
+import mongoose from 'mongoose';
 
-// Add these interfaces at the top of the file
 interface QuizQuestion {
   question: string;
   type: string;
@@ -20,58 +20,72 @@ interface QuizQuestion {
 
 export async function POST(request: NextRequest) {
   try {
-    const { projectId, quizData } = await request.json()
-    console.log('📦 Request data:', { 
-      projectId, 
+    const { projectId, quizData } = await request.json();
+    console.log('📦 Request data:', {
+      projectId,
       quizType: quizData.type,
-      title: quizData.title  // Access title from quizData object
-    })
+      title: quizData.title,
+    });
 
-    const session = await getServerSession(authOptions)
-    
+    const session = await getServerSession(authOptions);
+
     if (!session?.user) {
-      console.log('❌ No authenticated session')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      console.log('❌ No authenticated session');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.log('👤 User:', session.user.id)
+    console.log('👤 User:', session.user.id);
 
-    await connectDB()
-    console.log('✅ DB connected')
+    await connectDB();
+    console.log('✅ DB connected');
 
-    const project = await Project.findOne({ 
+    const project = await Project.findOne({
       _id: projectId,
-      $or: [{ userId: session.user.id }, { 'collaborators.userId': session.user.id }]
-    })
+      $or: [
+        { userId: session.user.id },
+        { 'collaborators.userId': session.user.id },
+      ],
+    });
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Create new quiz document with title
-    const quiz = await Quiz.create({
+    // Create a new Quiz instance
+    const quiz = new Quiz({
       userId: session.user.id,
       projectId,
       title: quizData.title,
       type: quizData.type,
+      status: 'draft',
+      // Add questions directly here
       questions: quizData.questions.map((q: QuizQuestion) => ({
-        ...q,
-        type: quizData.type
+        question: q.question,
+        type: quizData.type,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+        aiRubric: q.aiRubric,
       })),
-      status: 'draft'
-    })
+    });
 
-    console.log('✅ Quiz created:', quiz._id)
+    // Save the quiz to the database
+    await quiz.save();
+
+    console.log('✅ Quiz created:', quiz._id);
 
     return NextResponse.json({
       success: true,
-      quiz
-    })
-
+      quiz,
+    });
   } catch (error) {
-    console.error('❌ Quiz creation failed:', error)
+    console.error('❌ Quiz creation failed:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Quiz creation failed' },
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Quiz creation failed',
+      },
       { status: 500 }
-    )
+    );
   }
 }

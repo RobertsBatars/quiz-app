@@ -174,35 +174,37 @@ async function updateSchema() {
             bsonType: 'array',
             items: {
               bsonType: 'object',
-              required: ['question', 'type'],
+              required: ['_id', 'question', 'type'], // Include '_id' in required
               properties: {
+                // Add '_id' field
+                _id: { bsonType: 'objectId' },
                 question: { bsonType: 'string' },
                 type: { enum: ['multiple-choice', 'open-ended', 'flashcard'] },
-                options: { 
+                options: {
                   bsonType: 'array',
-                  items: { bsonType: 'string' }
+                  items: { bsonType: 'string' },
                 },
                 correctAnswer: { bsonType: 'string' },
                 explanation: { bsonType: 'string' },
-                aiRubric: { 
+                aiRubric: {
                   bsonType: 'object',
                   properties: {
                     keyPoints: {
                       bsonType: 'array',
-                      items: { bsonType: 'string' }
+                      items: { bsonType: 'string' },
                     },
-                    scoringCriteria: { bsonType: 'string' }
-                  }
-                }
-              }
-            }
+                    scoringCriteria: { bsonType: 'string' },
+                  },
+                },
+              },
+            },
           },
           timeLimit: { bsonType: 'int' },
           passingScore: { bsonType: 'int' },
-          status: { enum: ['draft', 'published', 'archived'] }
-        }
-      }
-    }
+          status: { enum: ['draft', 'published', 'archived'] },
+        },
+      },
+    },
   });
 
   // Remove Questions collection since questions are now embedded

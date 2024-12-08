@@ -11,8 +11,10 @@ import { Input } from "@/components/ui/input"
 import { motion, AnimatePresence } from "framer-motion"
 import OralExam from '@/components/OralExam'
 
+const DEBUG_MODE = false;
+
 interface Question {
-  _id: string;
+  _id: string; // Now includes _id
   question: string;
   type: 'multiple-choice' | 'open-ended' | 'flash-cards' | 'oral-exam';
   options?: string[];
@@ -30,6 +32,11 @@ interface Quiz {
   type: 'multiple-choice' | 'open-ended' | 'flash-cards' | 'oral-exam';
   questions: Question[];
   status: 'draft' | 'published' | 'archived';
+}
+
+// Add more detailed state typing
+interface UserAnswers {
+  [key: string]: string;
 }
 
 export default function Quiz({ params }: { params: { id: string; quizId: string } }) {
@@ -55,7 +62,12 @@ export default function Quiz({ params }: { params: { id: string; quizId: string 
         }
         const data = await response.json()
         if (data.success && data.quiz) {
-          setQuestions(data.quiz.questions)
+          const questionsWithIds = data.quiz.questions.map((q: Question, index: number) => ({
+            ...q,
+            _id: `temp-${index}-${Date.now()}`
+          }))
+          setQuestions(questionsWithIds)
+          DEBUG_MODE && console.log('Questions loaded with temp IDs:', questionsWithIds)
         } else {
           console.error('Quiz not found')
           router.push(`/project/${params.id}/quizzes`)
@@ -69,33 +81,81 @@ export default function Quiz({ params }: { params: { id: string; quizId: string 
     fetchQuiz()
   }, [user, router, params.id, params.quizId])
 
-  const handleAnswer = (answer: string) => {
-    setUserAnswers({ ...userAnswers, [questions[currentQuestion]._id]: answer })
+  const handleOptionClick = (questionId: string, option: string) => {
+    DEBUG_MODE && console.log('Option clicked:', { questionId, option })
+    
+    setUserAnswers(prev => {
+      const updated = { ...prev, [questionId]: option }
+      DEBUG_MODE && console.log('Updated answers:', updated)
+      return updated
+    })
+  }
+
+  const handleAnswer = (value: string) => {
+    const questionId = questions[currentQuestion]._id
+    DEBUG_MODE && console.log('Before update - Current answers:', userAnswers)
+    
+    setUserAnswers(prev => {
+      const newAnswers = {
+        ...prev,
+        [questionId]: value
+      }
+      DEBUG_MODE && console.log('After update - New answers:', newAnswers)
+      return newAnswers
+    })
+  }
+
+  // Update the handleSubmit function to include explanation
+  const handleSubmit = () => {
+    const results = questions.map((question, idx) => {
+      const answer = userAnswers[question._id]
+      const isCorrect = answer === question.correctAnswer
+      
+      return {
+        questionNumber: idx + 1,
+        question: question.question,
+        userAnswer: answer || 'No answer provided',
+        correctAnswer: question.correctAnswer,
+        explanation: question.explanation,
+        isCorrect
+      }
+    })
+  
+    const totalQuestions = questions.length
+    const correctAnswers = results.filter(r => r.isCorrect).length
+    const score = Math.round((correctAnswers / totalQuestions) * 100)
+  
+    // Add extra newline after score
+    const formattedResults = `Score: ${score}% (${correctAnswers}/${totalQuestions} correct)\n\n${
+      results.map(r => 
+        `Question ${r.questionNumber}: ${r.question}
+  Your Answer: ${r.userAnswer} ${r.isCorrect ? '✅' : '❌'}${
+    !r.isCorrect 
+      ? `\nCorrect Answer: ${r.correctAnswer}` 
+      : ''
+  }${
+    r.explanation 
+      ? `\nExplanation: ${r.explanation}` 
+      : ''
+  }`
+      ).join('\n\n')
+    }`
+  
+    setQuizResults(formattedResults)
   }
 
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1)
+      setCurrentQuestion(prev => prev + 1)
       setShowAnswer(false)
     }
   }
 
   const handlePrevious = () => {
     if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1)
+      setCurrentQuestion(prev => prev - 1)
       setShowAnswer(false)
     }
-  }
-
-  const handleSubmit = () => {
-    const results = questions.map((question, index) => {
-      const userAnswer = userAnswers[question._id] || 'No answer provided'
-      return `Question ${index + 1}: ${question.question}
-Your Answer: ${userAnswer}
-${question.correctAnswer ? `Correct Answer: ${question.correctAnswer}
-Explanation: ${question.explanation}` : 'This question will be reviewed manually.'}`
-    })
-    setQuizResults(results.join('\n\n'))
   }
 
   if (!user || questions.length === 0) {
@@ -115,17 +175,33 @@ Explanation: ${question.explanation}` : 'This question will be reviewed manually
           </CardHeader>
           <CardContent>
             {question.type === 'multiple-choice' && (
-              <RadioGroup
-                value={userAnswers[question._id] || ''}
-                onValueChange={(value) => handleAnswer(value)}
-              >
-                {question.options?.map((option) => (
-                  <div key={option} className="flex items-center space-x-2 mb-2">
-                    <RadioGroupItem value={option} id={option} />
-                    <Label htmlFor={option}>{option}</Label>
-                  </div>
+              <div className="space-y-4">
+                {question.options?.map((option, i) => (
+                  <button
+                    key={`${question._id}-${i}`} 
+                    type="button"
+                    className={`w-full p-4 rounded-lg border cursor-pointer transition-colors ${
+                      userAnswers[question._id] === option 
+                        ? 'bg-primary text-primary-foreground border-primary' 
+                        : 'hover:bg-accent'
+                    }`}
+                    onClick={() => handleOptionClick(question._id, option)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 rounded-full border ${
+                        userAnswers[question._id] === option 
+                          ? 'bg-primary-foreground border-primary-foreground' 
+                          : 'border-primary'
+                      }`}>
+                        {userAnswers[question._id] === option && (
+                          <div className="w-full h-full rounded-full bg-primary-foreground" />
+                        )}
+                      </div>
+                      <span>{option}</span>
+                    </div>
+                  </button>
                 ))}
-              </RadioGroup>
+              </div>
             )}
             {question.type === 'open-ended' && (
               <Input
@@ -186,14 +262,39 @@ Explanation: ${question.explanation}` : 'This question will be reviewed manually
             <CardTitle>Quiz Results</CardTitle>
           </CardHeader>
           <CardContent>
-            <pre className="whitespace-pre-wrap">{quizResults}</pre>
+            <div className="space-y-6">
+              {quizResults.split('\n\n').map((section, idx) => {
+                if (section.startsWith('Score:')) {
+                  return (
+                    <div key={idx} className="text-xl font-bold">
+                      {section}
+                    </div>
+                  )
+                }
+                
+                const isCorrect = section.includes('✅')
+                
+                return (
+                  <div key={idx} className={`p-4 rounded-lg border ${
+                    isCorrect 
+                      ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-800' 
+                      : 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-800'
+                  }`}>
+                    <pre className="whitespace-pre-wrap">
+                      {section}
+                    </pre>
+                  </div>
+                )
+              })}
+            </div>
           </CardContent>
           <CardFooter>
-            <Button onClick={() => router.push(`/project/${params.id}/quizzes`)}>Back to Quizzes</Button>
+            <Button onClick={() => router.push(`/project/${params.id}/quizzes`)}>
+              Back to Quizzes
+            </Button>
           </CardFooter>
         </Card>
       )}
     </div>
   )
 }
-

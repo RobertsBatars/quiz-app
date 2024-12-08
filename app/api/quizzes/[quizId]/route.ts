@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import connectDB from '@/lib/db'
-import Quiz from '@/models/Quiz'
+import connectDB from '@/lib/db';
+import Quiz from '@/models/Quiz';
 
 export async function GET(
   request: NextRequest,
@@ -14,27 +14,26 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await connectDB()
+    await connectDB();
 
-    const quiz = await Quiz.findOne({
-      _id: params.quizId,
-      $or: [
-        { userId: session.user.id },
-        { 'collaborators.userId': session.user.id }
-      ]
-    })
+    const quiz = await Quiz.findById(params.quizId).lean(); // Use lean() for plain JavaScript objects
 
     if (!quiz) {
-      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
+      return new Response(
+        JSON.stringify({ success: false, error: 'Quiz not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    return NextResponse.json({ success: true, quiz })
-
+    return new Response(JSON.stringify({ success: true, quiz }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error('Failed to fetch quiz:', error)
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Failed to fetch quiz' },
-      { status: 500 }
-    )
+    console.error('Error fetching quiz:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: 'Server error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }

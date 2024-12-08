@@ -12,6 +12,14 @@ import dbConnect from '@/lib/db';
 // Ensure database connection
 dbConnect();
 
+// Add interface at the top of the file
+interface DocumentWithId extends mongoose.Document {
+  _id: mongoose.Types.ObjectId;
+  fileName: string;
+  projectId: string;
+  __v: number;
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
@@ -94,6 +102,8 @@ export async function POST(request: NextRequest) {
       console.log('🔄 Gathering context...')
       let queryCount = 0
       const maxQueries = 5
+      let previousResults: string[] = []
+      let previousFileNames: string[] = []
 
       while (queryCount < maxQueries) {
         console.log(`📝 Generating query ${queryCount + 1}/${maxQueries}`)
@@ -106,7 +116,9 @@ export async function POST(request: NextRequest) {
             },
             {
               role: 'user',
-              content: `Generate a search query for a ${quizType} quiz about: ${title}`
+              content: `Generate a search query for a ${quizType} quiz about: ${title}
+            ${queryCount > 0 ? `\n\nPrevious searches found content from files: ${previousFileNames.join(', ')}
+            \nPrevious content found:\n${previousResults.join('\n')}` : ''}`
             }
           ],
           response_format: QUERY_SCHEMA
@@ -119,10 +131,29 @@ export async function POST(request: NextRequest) {
           projectId
         )
 
+        // Get document IDs from search results
+        const documentIds = searchResults.map(r => r.documentId);
+        const documents = await Document.find(
+          { _id: { $in: documentIds } },
+          { fileName: 1 }
+        ).lean().exec() as DocumentWithId[];
+
+        // Fixed reduce operation with proper typing
+        const fileNameMap = documents.reduce((map, doc: DocumentWithId) => {
+          const id = typeof doc._id === 'string' ? doc._id : doc._id.toString();
+          map[id] = doc.fileName;
+          return map;
+        }, {} as Record<string, string>);
+
+        // Update previous results and file names with actual file names
+        previousResults.push(...searchResults.map(r => r.content));
+        previousFileNames.push(...searchResults.map(r => fileNameMap[r.documentId] || 'Unknown'));
+
+        // Update document contexts with actual file names
         documentContexts.push(...searchResults.map(r => ({
           content: r.content,
-          fileName: r.fileName
-        })))
+          fileName: fileNameMap[r.documentId] || 'Unknown'
+        })));
 
         if (queryCompletion.choices[0].message?.parsed?.stopQuery || documentContexts.length >= 10) {
           break
