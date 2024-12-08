@@ -58,6 +58,8 @@ export default function Dashboard() {
 
       await createProject(newProjectName)
       setNewProjectName('')
+      // Reload projects immediately after creation
+      await loadProjects()
     } catch (err) {
       console.error('Project creation error:', err)
       setError('Failed to create project')
